@@ -841,7 +841,12 @@ export async function contentBrief(query: string, ownUrl?: string): Promise<Cont
 
   const freq = new Map<string, Set<string>>();
   for (const a of ok) {
-    const bag = new Set(terms([a.title, a.metaDescription, ...a.h1, ...a.h2].join(" ")));
+    const bag = new Set(
+      terms(
+        [a.title, a.metaDescription, ...a.h1, ...a.h2, (a.mainText ?? "").slice(0, 6000)].join(" "),
+      ),
+    );
+
     for (const t of bag) {
       if (!freq.has(t)) freq.set(t, new Set());
       freq.get(t)!.add(a.url);
