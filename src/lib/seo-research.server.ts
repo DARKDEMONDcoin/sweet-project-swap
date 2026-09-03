@@ -261,8 +261,15 @@ function genericLinks(html: string, excludeHosts: string[]): SerpResult[] {
 
 async function serpSearchOnce(query: string): Promise<SerpResult[]> {
   const attempts: (() => Promise<SerpResult[]>)[] = [
+    // 0) مجمّع SearXNG الديناميكي (عشرات النسخ المفتوحة بدل قائمة ثابتة)
+    async () => {
+      const { searxPoolSearch } = await import("./searx-pool.server");
+      const rows = await searxPoolSearch(query);
+      return rows.map((r, i) => ({ rank: i + 1, title: r.title, url: r.url, snippet: r.snippet }));
+    },
     // 1) Brave Search (نتائج عربية حقيقية بلا مفتاح)
     async () => {
+
       const html = await getText(
         `https://search.brave.com/search?q=${encodeURIComponent(query)}`,
         7_000,
