@@ -19,10 +19,14 @@ export type ResearchPlan = {
 };
 
 const OPENROUTER = "https://openrouter.ai/api/v1/chat/completions";
+const GEMINI = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+
+/** نماذج Google AI Studio (المزوّد الأساسي) بالترتيب. */
+export const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite"];
 
 /**
  * أفضل النماذج المجانية على OpenRouter بترتيب مُختبَر (جودة عربية + سرعة + توافر)،
- * مع تجاوز تلقائي عند 429/5xx أو رد فارغ أو تجاوز المهلة.
+ * تُستخدم كاحتياطي عند فشل Gemini.
  */
 export const FREE_MODELS = [
   "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -31,6 +35,7 @@ export const FREE_MODELS = [
   "minimax/minimax-m2.7:free",
   "z-ai/glm-5.2:free",
 ];
+
 
 export type ChatOptions = {
   json?: boolean;
@@ -108,17 +113,63 @@ async function callModel(
   return content;
 }
 
-/** نداء النموذج عبر OpenRouter (نماذج مجانية) مع تجاوز تلقائي بين النماذج. */
+/** نداء نموذج Gemini عبر واجهة Google المتوافقة مع OpenAI. */
+async function callGemini(
+  apiKey: string,
+  model: string,
+  messages: { role: string; content: string }[],
+  options: ChatOptions,
+): Promise<string> {
+  const res = await fetch(GEMINI, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      ...(options.json ? { response_format: { type: "json_object" } } : {}),
+      max_tokens: options.maxTokens ?? 1800,
+      messages,
+    }),
+    signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`${model}: ${res.status} ${text.slice(0, 200)}`);
+  }
+  const payload = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const content = payload.choices?.[0]?.message?.content ?? "";
+  if (!content.trim()) throw new Error(`${model}: رد فارغ`);
+  return content;
+}
+
+/**
+ * نداء النموذج: Gemini (Google AI Studio) كخيار أول،
+ * ثم نماذج OpenRouter المجانية كاحتياطي تلقائي.
+ */
 export async function freeChat(
   apiKey: string,
   messages: { role: string; content: string }[],
   options: ChatOptions = {},
 ): Promise<string> {
+  let lastError = "";
+
+  const geminiKey = process.env["GEMINI_API_KEY"];
+  if (geminiKey) {
+    for (const model of GEMINI_MODELS) {
+      try {
+        return await callGemini(geminiKey, model, messages, options);
+      } catch (error) {
+        lastError = (error as Error).message;
+      }
+    }
+  }
+
+  if (!apiKey) throw new Error(`تعذّر توليد الرد (${lastError || "لا يوجد مزوّد مهيأ"}).`);
+
   const pool = FREE_MODELS.filter((m) => !unavailable.has(m)).slice(
     0,
     options.attempts ?? FREE_MODELS.length,
   );
-  let lastError = "";
+
 
   if (options.race !== false && pool.length > 1) {
     // أول نموذجين بالتوازي: يقلّل زمن الانتظار إلى أسرع نموذج متاح لحظياً.
