@@ -19,13 +19,14 @@ const EMPTY: LiveContext = { block: "", used: [] };
 
 /** المنصات التي يقرأ منها كل موظف سياقه الحيّ قبل التنفيذ. */
 export const employeeReadProviders: Record<string, string[]> = {
-  eva: ["gmail", "calendar"],
+  eva: ["gmail", "outlook", "calendar"],
   sam: ["hubspot", "gmail", "calendar"],
   sonny: ["instagram", "facebook"],
   adam: [],
   dana: [],
   nour: [],
 };
+
 
 async function accountFor(
   admin: Admin,
