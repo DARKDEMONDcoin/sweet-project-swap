@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ShieldCheck, RefreshCw, Loader2 } from "lucide-react";
+import { ShieldCheck, RefreshCw, Loader2, Plug } from "lucide-react";
 
 import { AppShell } from "@/components/app/AppShell";
 import { AppIcon, appLabel } from "@/components/site/AppIcon";
@@ -15,8 +15,15 @@ import { WebflowConnect } from "@/components/app/WebflowConnect";
 import { GhostConnect } from "@/components/app/GhostConnect";
 import { team } from "@/data/team";
 import { integrationStatusLabel } from "@/data/app";
+import { isPipedreamProvider, pipedreamApp } from "@/data/pipedream-apps";
 import { useIntegrations, useSetIntegrationStatus, useWorkspace } from "@/lib/data";
 import { disconnectProvider } from "@/lib/integrations.functions";
+import {
+  disconnectPipedream,
+  pipedreamStatus,
+  startPipedreamConnect,
+  syncPipedreamAccounts,
+} from "@/lib/pipedream.functions";
 import { startSearchConsoleOAuth } from "@/lib/gsc.functions";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +38,7 @@ export const Route = createFileRoute("/app/integrations")({
   component: IntegrationsPage,
 });
 
-/** المنصات المربوطة ربطاً حقيقياً (لا محاكاة). */
+/** المنصات المربوطة ربطاً مباشراً من داخل المنصة (بدون وسيط). */
 const realProviders = new Set([
   "wordpress",
   "search-console",

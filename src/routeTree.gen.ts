@@ -38,6 +38,7 @@ import { Route as EmployeesIndexRouteImport } from './routes/employees.index'
 import { Route as EmployeesIdRouteImport } from './routes/employees.$id'
 import { Route as ApiPublicNourAutomationsRouteImport } from './routes/api/public/nour-automations'
 import { Route as ApiPublicNourWeeklyRouteImport } from './routes/api/public/nour-weekly'
+import { Route as ApiPublicPipedreamWebhookRouteImport } from './routes/api/public/pipedream-webhook'
 import { Route as AppChatIndexRouteImport } from './routes/app.chat.index'
 import { Route as AppChatIdRouteImport } from './routes/app.chat.$id'
 import { Route as ApiPublicGscCallbackRouteImport } from './routes/api/public/gsc.callback'
@@ -188,6 +189,12 @@ const ApiPublicNourWeeklyRoute = ApiPublicNourWeeklyRouteImport.update({
   path: '/api/public/nour-weekly',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPipedreamWebhookRoute =
+  ApiPublicPipedreamWebhookRouteImport.update({
+    id: '/api/public/pipedream-webhook',
+    path: '/api/public/pipedream-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppChatIndexRoute = AppChatIndexRouteImport.update({
   id: '/chat/',
   path: '/chat/',
@@ -234,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/employees/': typeof EmployeesIndexRoute
   '/api/public/nour-automations': typeof ApiPublicNourAutomationsRoute
   '/api/public/nour-weekly': typeof ApiPublicNourWeeklyRoute
+  '/api/public/pipedream-webhook': typeof ApiPublicPipedreamWebhookRoute
   '/app/chat/$id': typeof AppChatIdRoute
   '/app/chat/': typeof AppChatIndexRoute
   '/api/public/gsc/callback': typeof ApiPublicGscCallbackRoute
@@ -267,6 +275,7 @@ export interface FileRoutesByTo {
   '/employees': typeof EmployeesIndexRoute
   '/api/public/nour-automations': typeof ApiPublicNourAutomationsRoute
   '/api/public/nour-weekly': typeof ApiPublicNourWeeklyRoute
+  '/api/public/pipedream-webhook': typeof ApiPublicPipedreamWebhookRoute
   '/app/chat/$id': typeof AppChatIdRoute
   '/app/chat': typeof AppChatIndexRoute
   '/api/public/gsc/callback': typeof ApiPublicGscCallbackRoute
@@ -302,6 +311,7 @@ export interface FileRoutesById {
   '/employees/': typeof EmployeesIndexRoute
   '/api/public/nour-automations': typeof ApiPublicNourAutomationsRoute
   '/api/public/nour-weekly': typeof ApiPublicNourWeeklyRoute
+  '/api/public/pipedream-webhook': typeof ApiPublicPipedreamWebhookRoute
   '/app/chat/$id': typeof AppChatIdRoute
   '/app/chat/': typeof AppChatIndexRoute
   '/api/public/gsc/callback': typeof ApiPublicGscCallbackRoute
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/employees/'
     | '/api/public/nour-automations'
     | '/api/public/nour-weekly'
+    | '/api/public/pipedream-webhook'
     | '/app/chat/$id'
     | '/app/chat/'
     | '/api/public/gsc/callback'
@@ -371,6 +382,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/api/public/nour-automations'
     | '/api/public/nour-weekly'
+    | '/api/public/pipedream-webhook'
     | '/app/chat/$id'
     | '/app/chat'
     | '/api/public/gsc/callback'
@@ -405,6 +417,7 @@ export interface FileRouteTypes {
     | '/employees/'
     | '/api/public/nour-automations'
     | '/api/public/nour-weekly'
+    | '/api/public/pipedream-webhook'
     | '/app/chat/$id'
     | '/app/chat/'
     | '/api/public/gsc/callback'
@@ -431,6 +444,7 @@ export interface RootRouteChildren {
   EmployeesIndexRoute: typeof EmployeesIndexRoute
   ApiPublicNourAutomationsRoute: typeof ApiPublicNourAutomationsRoute
   ApiPublicNourWeeklyRoute: typeof ApiPublicNourWeeklyRoute
+  ApiPublicPipedreamWebhookRoute: typeof ApiPublicPipedreamWebhookRoute
   ApiPublicGscCallbackRoute: typeof ApiPublicGscCallbackRoute
 }
 
@@ -639,6 +653,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicNourWeeklyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/pipedream-webhook': {
+      id: '/api/public/pipedream-webhook'
+      path: '/api/public/pipedream-webhook'
+      fullPath: '/api/public/pipedream-webhook'
+      preLoaderRoute: typeof ApiPublicPipedreamWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/chat/': {
       id: '/app/chat/'
       path: '/chat'
@@ -714,6 +735,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmployeesIndexRoute: EmployeesIndexRoute,
   ApiPublicNourAutomationsRoute: ApiPublicNourAutomationsRoute,
   ApiPublicNourWeeklyRoute: ApiPublicNourWeeklyRoute,
+  ApiPublicPipedreamWebhookRoute: ApiPublicPipedreamWebhookRoute,
   ApiPublicGscCallbackRoute: ApiPublicGscCallbackRoute,
 }
 export const routeTree = rootRouteImport
