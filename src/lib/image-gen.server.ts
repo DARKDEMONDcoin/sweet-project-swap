@@ -108,3 +108,33 @@ export function heroPrompt(topic: string, industry?: string): string {
     .filter(Boolean)
     .join(" ");
 }
+
+/**
+ * صورة رئيسية «مملوكة»: نولّدها ثم نرفعها إلى مخزن Supabase (nour-media) باسم مساحة العمل،
+ * فتصبح أصلاً دائماً يخصّ العميل لا رابطاً خارجياً. عند أي فشل نرجع لرابط المزوّد المجاني.
+ */
+export async function ownedHeroImage(
+  client: { storage: { from: (b: string) => { upload: (p: string, f: Blob, o?: Record<string, unknown>) => Promise<{ error: unknown }>; createSignedUrl: (p: string, s: number) => Promise<{ data: { signedUrl: string } | null }> } } },
+  workspaceId: string,
+  prompt: string,
+): Promise<string> {
+  const fallback = imageUrl(prompt);
+  try {
+    const image = await generateImageBytes(prompt);
+    if (!image) return fallback;
+    const ext = image.contentType.includes("png") ? "png" : "jpg";
+    const path = `${workspaceId}/hero/${crypto.randomUUID()}.${ext}`;
+    const bucket = client.storage.from("nour-media");
+    const { error } = await bucket.upload(path, new Blob([image.bytes as BlobPart], { type: image.contentType }), {
+      contentType: image.contentType,
+      upsert: false,
+    });
+    if (error) return fallback;
+    // رابط موقّع طويل الأمد (5 سنوات) صالح للنشر داخل المقال
+    const { data } = await bucket.createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+    return data?.signedUrl ?? fallback;
+  } catch (error) {
+    console.error("[nour] owned hero image failed:", error);
+    return fallback;
+  }
+}
