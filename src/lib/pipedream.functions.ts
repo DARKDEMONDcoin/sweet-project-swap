@@ -189,10 +189,16 @@ export const publishViaPipedream = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const admin = await assertOwner(context.supabase, data.workspaceId);
     const { publishToPlatform } = await import("./pipedream-publish.server");
-    return publishToPlatform(admin, {
+    const published = await publishToPlatform(admin, {
       workspaceId: data.workspaceId,
       provider: data.provider,
       text: data.text,
       ...(data.imageUrl ? { imageUrl: data.imageUrl } : {}),
     });
+    return {
+      ok: true as const,
+      provider: published.provider,
+      accountId: published.accountId,
+      result: JSON.stringify(published.result ?? null).slice(0, 4000),
+    };
   });
