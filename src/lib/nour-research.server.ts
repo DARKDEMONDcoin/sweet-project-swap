@@ -22,7 +22,9 @@ const OPENROUTER = "https://openrouter.ai/api/v1/chat/completions";
 const GEMINI = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 /** نماذج Google AI Studio (المزوّد الأساسي) بالترتيب. */
-export const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite"];
+// flash-lite أولاً: يردّ في ~7 ثوانٍ بجودة قريبة، بينما 3.6-flash يتجاوز 50 ثانية
+// ويُقطع بمهلة الطلب (30 ثانية) فيُهدر الوقت قبل الاحتياطي.
+export const GEMINI_MODELS = ["gemini-3.5-flash-lite", "gemini-3.6-flash"];
 
 /**
  * أفضل النماذج المجانية على OpenRouter بترتيب مُختبَر (جودة عربية + سرعة + توافر)،
