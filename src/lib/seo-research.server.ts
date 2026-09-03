@@ -476,11 +476,24 @@ async function serpSearchOnce(query: string): Promise<SerpResult[]> {
   });
 
   try {
-    return await withBudget(Promise.any(race), 9_000, [] as SerpResult[]);
+    const rows = await withBudget(Promise.any(race), 13_000, [] as SerpResult[]);
+    if (rows.length) return rows;
   } catch {
-    return [];
+    // كل المحركات فشلت — ننتقل للملاذ الأخير
   }
+  // ملاذ أخير: ويكيبيديا العربية (نتائج حقيقية مستقرة، أفضل من إرجاع فراغ)
+  const { wikipediaSearch } = await import("./searx-pool.server");
+  const wiki = clean(
+    (await wikipediaSearch(query)).map((r, i) => ({
+      rank: i + 1,
+      title: r.title,
+      url: r.url,
+      snippet: r.snippet,
+    })),
+  );
+  return wiki;
 }
+
 
 /** ينفّذ وعداً بميزانية زمنية صارمة ويعيد بديلاً عند التجاوز — يمنع تعليق الردود. */
 export async function withBudget<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
