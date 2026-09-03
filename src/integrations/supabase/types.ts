@@ -246,6 +246,56 @@ export type Database = {
           },
         ]
       }
+      pipedream_accounts: {
+        Row: {
+          account_id: string
+          account_name: string | null
+          app_slug: string
+          connected_at: string
+          healthy: boolean
+          id: string
+          last_error: string | null
+          provider: string
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          account_id: string
+          account_name?: string | null
+          app_slug: string
+          connected_at?: string
+          healthy?: boolean
+          id?: string
+          last_error?: string | null
+          provider: string
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          account_id?: string
+          account_name?: string | null
+          app_slug?: string
+          connected_at?: string
+          healthy?: boolean
+          id?: string
+          last_error?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipedream_accounts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company: string | null
