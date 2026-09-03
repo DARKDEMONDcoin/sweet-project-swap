@@ -125,6 +125,8 @@ async function callGemini(
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
+      // بدون هذا يستهلك gemini-3.6-flash دقائق في "التفكير" ويقطع الرد.
+      reasoning_effort: "low",
       ...(options.json ? { response_format: { type: "json_object" } } : {}),
       max_tokens: options.maxTokens ?? 1800,
       messages,
