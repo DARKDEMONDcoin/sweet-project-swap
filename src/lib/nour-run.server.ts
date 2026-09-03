@@ -144,8 +144,9 @@ export async function executeSkill(
     origin?: string;
   },
 ): Promise<SkillRun> {
-  const apiKey = process.env["OPENROUTER_API_KEY"];
-  if (!apiKey) throw new Error("مفتاح OpenRouter غير مهيأ.");
+  const apiKey = process.env["OPENROUTER_API_KEY"] ?? "";
+  if (!apiKey && !process.env["GEMINI_API_KEY"])
+    throw new Error("لا يوجد مزوّد ذكاء اصطناعي مهيأ (Gemini أو OpenRouter).");
 
   const persona = personas[params.employeeId];
   const skill = getSkill(params.skillId);

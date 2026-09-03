@@ -29,8 +29,9 @@ export const askEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => input.parse(data))
   .handler(async ({ data, context }) => {
-    const apiKey = process.env["OPENROUTER_API_KEY"];
-    if (!apiKey) throw new Error("مفتاح OpenRouter غير مهيأ.");
+    const apiKey = process.env["OPENROUTER_API_KEY"] ?? "";
+    if (!apiKey && !process.env["GEMINI_API_KEY"])
+      throw new Error("لا يوجد مزوّد ذكاء اصطناعي مهيأ (Gemini أو OpenRouter).");
 
     const supabase = context.supabase;
     const persona = personas[data.employeeId];
