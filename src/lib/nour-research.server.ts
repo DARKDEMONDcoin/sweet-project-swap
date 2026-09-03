@@ -146,13 +146,17 @@ async function callGemini(
  * ثم نماذج OpenRouter المجانية كاحتياطي تلقائي.
  */
 export async function freeChat(
-  apiKey: string,
+  keyHint: string,
   messages: { role: string; content: string }[],
   options: ChatOptions = {},
 ): Promise<string> {
   let lastError = "";
 
-  const geminiKey = process.env["GEMINI_API_KEY"];
+  const { providerKeys } = await import("./provider-keys.server");
+  const keys = await providerKeys();
+  const apiKey = keys.openrouter || keyHint;
+
+  const geminiKey = keys.gemini;
   if (geminiKey) {
     for (const model of GEMINI_MODELS) {
       try {
@@ -164,6 +168,7 @@ export async function freeChat(
   }
 
   if (!apiKey) throw new Error(`تعذّر توليد الرد (${lastError || "لا يوجد مزوّد مهيأ"}).`);
+
 
   const pool = FREE_MODELS.filter((m) => !unavailable.has(m)).slice(
     0,
