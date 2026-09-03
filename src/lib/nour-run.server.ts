@@ -245,6 +245,20 @@ export async function executeSkill(
     params.workspaceId,
   );
 
+  // سياق حيّ من حسابات العلامة المربوطة (بريد، تقويم، CRM…) عبر Pipedream.
+  let live = { block: "", used: [] as string[] };
+  try {
+    const { liveContextFor } = await import("./pipedream-tools.server");
+    live = await liveContextFor(
+      client as unknown as Parameters<typeof liveContextFor>[0],
+      params.employeeId,
+      params.workspaceId,
+    );
+  } catch (error) {
+    console.error("[live] context failed:", error);
+  }
+
+
   const today = new Date();
   const todayAr = today.toLocaleDateString("ar-EG", {
     timeZone: "Asia/Riyadh",
