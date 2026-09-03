@@ -53,9 +53,11 @@ export const runEmployeeAction = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const admin = await assertOwner(context.supabase, data.workspaceId);
     const { runEmployeeActionServer } = await import("./employee-actions.server");
-    return runEmployeeActionServer(admin, {
+    const res = await runEmployeeActionServer(admin, {
       workspaceId: data.workspaceId,
       actionId: data.actionId,
       values: data.values,
     });
+    return { actionId: res.actionId, provider: res.provider, ok: true as const };
+
   });
