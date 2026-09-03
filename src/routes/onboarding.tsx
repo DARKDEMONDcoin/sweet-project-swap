@@ -56,6 +56,7 @@ function Onboarding() {
   const updateWorkspace = useUpdateWorkspace();
   const setIntegration = useSetIntegrationStatus(workspace?.id);
   const addBrain = useAddBrainItem(workspace?.id);
+  const createAutomation = useServerFn(saveAutomation);
 
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
