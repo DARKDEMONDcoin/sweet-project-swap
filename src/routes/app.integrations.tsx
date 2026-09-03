@@ -247,6 +247,22 @@ function IntegrationsPage() {
         </p>
       ) : null}
 
+      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-secondary/50 p-4">
+        <Plug className="size-5 shrink-0 text-jade-deep" />
+        <p className="flex-1 text-sm font-semibold">
+          {pdReady === false
+            ? "وسيط التكاملات (Pipedream) غير مفعّل بعد — أضف مفاتيح Pipedream ليعمل ربط منصات التواصل والبريد وCRM."
+            : "منصات التواصل والبريد وCRM تُربط عبر Pipedream — لا نحتفظ بأي كلمات مرور أو توكنات لديك."}
+        </p>
+        <button
+          onClick={() => void refresh()}
+          disabled={busy === "sync" || !workspace}
+          className="shrink-0 rounded-full bg-foreground px-3.5 py-1.5 text-xs font-bold text-background disabled:opacity-60"
+        >
+          {busy === "sync" ? "…" : "تحديث الحسابات"}
+        </button>
+      </div>
+
       {broken.length ? (
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-coral/30 bg-coral/8 p-4">
           <RefreshCw className="size-5 shrink-0 text-coral" />
