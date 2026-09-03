@@ -608,6 +608,11 @@ export async function auditPage(url: string): Promise<PageAudit> {
     );
     const imgs = html.match(/<img\b[^>]*>/gi) ?? [];
     const links = html.match(/<a\b[^>]*href="([^"]+)"/gi) ?? [];
+    // متن المقال الحقيقي عبر Readability (مفتوح المصدر) — يستبعد القوائم والفوتر
+    // فيصبح عدّ الكلمات وتحليل المصطلحات مطابقاً للمحتوى الفعلي لا لهيكل الصفحة.
+    const { extractArticle } = await import("./readability.server");
+    const article = extractArticle(html, target.toString());
+    const rawWords = body ? body.split(/\s+/).length : 0;
     return {
       url: target.toString(),
       status: res.status,
@@ -616,7 +621,10 @@ export async function auditPage(url: string): Promise<PageAudit> {
         /<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i.exec(html)?.[1] ?? "",
       h1: all(/<h1[^>]*>([\s\S]*?)<\/h1>/i, 5),
       h2: all(/<h2[^>]*>([\s\S]*?)<\/h2>/i, 15),
-      wordCount: body ? body.split(/\s+/).length : 0,
+      wordCount: article?.wordCount || rawWords,
+      rawWordCount: rawWords,
+      mainText: article?.text.slice(0, 12_000) ?? "",
+      excerpt: article?.excerpt ?? "",
       lang: /<html[^>]+lang=["']([^"']+)["']/i.exec(html)?.[1] ?? "",
       hasCanonical: /rel=["']canonical["']/i.test(html),
       hasSchema: /application\/ld\+json/i.test(html),
@@ -626,6 +634,7 @@ export async function auditPage(url: string): Promise<PageAudit> {
         return href.startsWith("/") || href.includes(target.host);
       }).length,
     };
+
   } catch (error) {
     return { ...empty, error: error instanceof Error ? error.message : "تعذّر جلب الصفحة" };
   }
