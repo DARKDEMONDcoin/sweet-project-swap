@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Check, Sparkles, Loader2 } from "lucide-react";
 
+import { useServerFn } from "@tanstack/react-start";
+
 import { AppIcon, appLabel } from "@/components/site/AppIcon";
 import { team } from "@/data/team";
+import { saveAutomation } from "@/lib/automations.functions";
 import {
   useAddBrainItem,
   useIntegrations,
@@ -53,6 +56,7 @@ function Onboarding() {
   const updateWorkspace = useUpdateWorkspace();
   const setIntegration = useSetIntegrationStatus(workspace?.id);
   const addBrain = useAddBrainItem(workspace?.id);
+  const createAutomation = useServerFn(saveAutomation);
 
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -109,6 +113,28 @@ function Onboarding() {
             account: `${name || workspace.name} · ${appLabel(i.provider)}`,
           });
         }
+      }
+      // نور تبدأ العمل من أول يوم: 5 أفكار محتوى كل صباح بلا طلب منك
+      try {
+        await createAutomation({
+          data: {
+            workspaceId: workspace.id,
+            employeeId: "nour",
+            skillId: "daily-ideas",
+            label: "5 أفكار محتوى كل صباح",
+            values: {
+              topic: industry || workspace.industry || name || workspace.name,
+              count: "5",
+            },
+            cadence: "daily",
+            dayOfWeek: 1,
+            hour: 6,
+            autoPublish: false,
+            active: true,
+          },
+        });
+      } catch (error) {
+        console.error("[onboarding] daily ideas automation failed:", error);
       }
       void navigate({ to: "/app" });
     } finally {

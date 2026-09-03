@@ -273,6 +273,48 @@ export type Database = {
         }
         Relationships: []
       }
+      rank_snapshots: {
+        Row: {
+          captured_at: string
+          id: string
+          keyword_id: string
+          position: number | null
+          url: string | null
+          workspace_id: string
+        }
+        Insert: {
+          captured_at?: string
+          id?: string
+          keyword_id: string
+          position?: number | null
+          url?: string | null
+          workspace_id: string
+        }
+        Update: {
+          captured_at?: string
+          id?: string
+          keyword_id?: string
+          position?: number | null
+          url?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rank_snapshots_keyword_id_fkey"
+            columns: ["keyword_id"]
+            isOneToOne: false
+            referencedRelation: "tracked_keywords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rank_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       serp_cache: {
         Row: {
           cache_key: string
@@ -340,6 +382,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "tasks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracked_keywords: {
+        Row: {
+          active: boolean
+          created_at: string
+          domain: string
+          id: string
+          keyword: string
+          last_checked_at: string | null
+          market: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          domain: string
+          id?: string
+          keyword: string
+          last_checked_at?: string | null
+          market?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          domain?: string
+          id?: string
+          keyword?: string
+          last_checked_at?: string | null
+          market?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracked_keywords_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
