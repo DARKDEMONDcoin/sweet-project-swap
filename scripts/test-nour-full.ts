@@ -40,10 +40,10 @@ const skills = [
   { id: "keyword-research", values: { topic: "تأمين سيارات في السعودية", market: "السعودية" } },
   { id: "seo-article", values: { topic: "أفضل بطاقات ائتمان بدون رسوم في مصر", keyword: "بطاقات ائتمان بدون رسوم" } },
   { id: "serp-brief", values: { keyword: "أسعار الذهب اليوم", market: "مصر" } },
-  { id: "meta-pack", values: { url: "https://ar.wikipedia.org/wiki/تحسين_محركات_البحث", keyword: "تحسين محركات البحث" } },
+  { id: "meta-pack", values: { page: "صفحة أسعار تأمين السيارات", keyword: "تأمين سيارات" } },
   { id: "geo-answers", values: { topic: "كيف أختار شركة استضافة عربية" } },
-  { id: "seo-audit", values: { url: "https://ar.wikipedia.org/wiki/سيو" } },
-  { id: "publish-package", values: { topic: "دليل تحسين المتاجر العربية", keyword: "تحسين متجر إلكتروني" } },
+  { id: "seo-audit", values: { site: "متجر عطور سعودي — perfume.sa" } },
+  { id: "publish-package", values: { content: "# دليل تحسين المتاجر العربية\n\nمقدمة قصيرة عن تحسين متجر إلكتروني عربي وزيادة ظهوره في البحث.", cms: "wordpress" } },
 ];
 
 const results = await Promise.all([
@@ -56,16 +56,17 @@ const results = await Promise.all([
   timed("auditPage", () => auditPage("https://ar.wikipedia.org/wiki/سيو"), (v) => ({
     title: v.title?.slice(0, 60),
     words: v.wordCount,
+    raw: v.rawWordCount,
     h1: v.h1?.length,
-    issues: v.issues?.length,
   })),
   timed("contentBrief", () => contentBrief("أفضل بطاقات ائتمان في مصر"), (v) => ({
-    headings: v.outline?.length ?? 0,
-    keywords: v.keywords?.length ?? 0,
-    sources: v.sources?.length ?? 0,
+    headings: v.headingIdeas?.length ?? 0,
+    terms: v.commonTerms?.length ?? 0,
+    analyzed: v.analyzed,
+    target: v.targetWordCount,
   })),
   timed("competitorInventory", () => competitorInventory("almowafir.com"), (v) => ({
-    urls: v.urls?.length ?? 0,
+    urls: v.urlCount, samples: v.samples?.length ?? 0,
   })),
   timed(
     "freeChat",
