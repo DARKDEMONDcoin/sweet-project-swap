@@ -356,10 +356,13 @@ export async function executeSkill(
       const subjectForImage =
         values["topic"] ||
         values["keyword"] ||
+        values["subject"] ||
         values["product"] ||
+        values["campaign"] ||
         values["business"] ||
         values["goal"] ||
         skill.title;
+
       const alt = `${subjectForImage}`.slice(0, 120);
       const hero = await ownedHeroImage(
         client as unknown as Parameters<typeof ownedHeroImage>[0],
