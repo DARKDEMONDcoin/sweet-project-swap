@@ -97,7 +97,50 @@ export const Route = createFileRoute("/api/public/nour-automations")({
           }
         }
 
-        return Response.json({ ran: report.length, report });
+        // لقطة ترتيب يومية لكل الكلمات المتتبَّعة — سجل تاريخي حقيقي بلا تدخّل
+        let ranked = 0;
+        try {
+          const { data: keywords } = await supabaseAdmin
+            .from("tracked_keywords")
+            .select("id, workspace_id, keyword, domain")
+            .eq("active", true)
+            .limit(200);
+          if (keywords?.length) {
+            const { serpSearch } = await import("@/lib/seo-research.server");
+            const stamp = now.toISOString();
+            for (const k of keywords) {
+              try {
+                const results = await serpSearch(k.keyword);
+                const hit = results.find((r) => {
+                  try {
+                    const host = new URL(r.url).hostname.replace(/^www\./, "").toLowerCase();
+                    return host === k.domain || host.endsWith(`.${k.domain}`);
+                  } catch {
+                    return false;
+                  }
+                });
+                await supabaseAdmin.from("rank_snapshots").insert({
+                  workspace_id: k.workspace_id,
+                  keyword_id: k.id,
+                  position: hit?.rank ?? null,
+                  url: hit?.url ?? null,
+                  captured_at: stamp,
+                });
+                await supabaseAdmin
+                  .from("tracked_keywords")
+                  .update({ last_checked_at: stamp })
+                  .eq("id", k.id);
+                ranked += 1;
+              } catch {
+                // كلمة واحدة تفشل لا توقف البقية
+              }
+            }
+          }
+        } catch (e) {
+          console.error("[nour] rank sweep failed:", e);
+        }
+
+        return Response.json({ ran: report.length, ranked, report });
       },
     },
   },
