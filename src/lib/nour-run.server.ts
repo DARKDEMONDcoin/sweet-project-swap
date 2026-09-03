@@ -239,9 +239,29 @@ export async function executeSkill(
   ).trim();
 
   if (!output) throw new Error("لم يصل مخرج من الموظف — أعد المحاولة.");
+
+  // صورة رئيسية مجانية لكل مخرج تحريري (مقال/صفحة/حزمة نشر) — مثل Penny وأدق منها:
+  // نستخدم مزوّداً بلا مفتاح وبلا حد يومي، والرابط دائم صالح للنشر مباشرة.
+  if (ARTICLE_SKILLS.has(skill.id)) {
+    try {
+      const { imageUrl, heroPrompt } = await import("./image-gen.server");
+      const subjectForImage =
+        values["topic"] || values["keyword"] || values["product"] || skill.title;
+      const alt = `${subjectForImage}`.slice(0, 120);
+      const hero = imageUrl(heroPrompt(subjectForImage, workspace.industry));
+      const lines = output.split("\n");
+      const at = lines[0]?.startsWith("#") ? 1 : 0;
+      lines.splice(at, 0, "", `![${alt}](${hero})`, "");
+      output = lines.join("\n");
+    } catch (error) {
+      console.error("[nour] hero image failed:", error);
+    }
+  }
+
   if (research.used.length) {
     output = `${output}\n\n> مصادر البيانات: ${research.used.join(" · ")}`;
   }
+
 
   const { data: assistantRow, error: assistantError } = await client
     .from("messages")
