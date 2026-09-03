@@ -111,10 +111,24 @@ export async function keywordExpansion(seed: string): Promise<KeywordExpansion> 
 
 export type SerpResult = { rank: number; title: string; url: string; snippet: string };
 
+/** بصمات متصفح متعددة: تقلّل حجب محركات البحث المجانية عند تتابع الطلبات. */
+const AGENTS = [
+  UA,
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+  "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0",
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+];
+let agentIndex = 0;
+
 async function getText(url: string, ms = 7_000): Promise<string> {
   try {
+    const agent = AGENTS[agentIndex++ % AGENTS.length]!;
     const res = await fetch(url, {
-      headers: { "User-Agent": UA, "Accept-Language": "ar,en;q=0.8" },
+      headers: {
+        "User-Agent": agent,
+        "Accept-Language": "ar,en;q=0.8",
+        Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
+      },
       signal: timeout(ms),
     });
     if (!res.ok) return "";
@@ -123,6 +137,7 @@ async function getText(url: string, ms = 7_000): Promise<string> {
     return "";
   }
 }
+
 
 /**
  * نتائج بحث عامة (أفضل جهد) من مصادر مجانية بلا مفاتيح.
@@ -188,12 +203,19 @@ export async function serpSearch(query: string): Promise<SerpResult[]> {
     return stored;
   }
 
-  const results = await queued(() => serpSearchOnce(query), 250);
+  // تحت الضغط المتوازي تخنق المحركات المجانية الطلبات وترجع صفراً؛ نعيد المحاولة
+  // مرتين بتباعد متزايد حتى لا يعود بحث حقيقي فارغاً بسبب اختناق لحظي.
+  let results = await queued(() => serpSearchOnce(query), 250);
+  for (let attempt = 0; !results.length && attempt < 2; attempt++) {
+    await new Promise((r) => setTimeout(r, 900 * (attempt + 1)));
+    results = await queued(() => serpSearchOnce(query), 250);
+  }
   if (results.length) {
     serpCache.set(query, results);
     await serpToDb(query, results);
   }
   return results;
+
 }
 
 /**
