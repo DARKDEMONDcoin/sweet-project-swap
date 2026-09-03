@@ -621,8 +621,14 @@ export type PageAudit = {
  */
 async function readerFallback(url: string): Promise<{ title: string; text: string } | null> {
   try {
-    const raw = await getText(`https://r.jina.ai/${url}`, 20_000);
+    const res = await fetch(`https://r.jina.ai/${url}`, {
+      headers: { Accept: "text/plain, text/markdown, */*" },
+      signal: timeout(25_000),
+    });
+    if (!res.ok) return null;
+    const raw = await res.text();
     if (!raw || raw.length < 80) return null;
+
     const title = /^Title:\s*(.+)$/m.exec(raw)?.[1]?.trim() ?? "";
     const body = raw
       .replace(/^Title:.*$/m, "")
