@@ -205,10 +205,11 @@ export async function serpSearch(query: string): Promise<SerpResult[]> {
 
   // تحت الضغط المتوازي تخنق المحركات المجانية الطلبات وترجع صفراً؛ نعيد المحاولة
   // مرتين بتباعد متزايد حتى لا يعود بحث حقيقي فارغاً بسبب اختناق لحظي.
-  let results = await queued(() => serpSearchOnce(query), 250);
+  let results = await queued(() => serpSearchOnce(query, false), 250);
   for (let attempt = 0; !results.length && attempt < 2; attempt++) {
     await new Promise((r) => setTimeout(r, 900 * (attempt + 1)));
-    results = await queued(() => serpSearchOnce(query), 250);
+    // المحاولة الأخيرة فقط تسمح بالملاذ الأخير (ويكيبيديا) حتى لا يطغى على نتائج الويب.
+    results = await queued(() => serpSearchOnce(query, attempt === 1), 250);
   }
   if (results.length) {
     serpCache.set(query, results);
@@ -259,10 +260,17 @@ function genericLinks(html: string, excludeHosts: string[]): SerpResult[] {
   return out;
 }
 
-async function serpSearchOnce(query: string): Promise<SerpResult[]> {
+async function serpSearchOnce(query: string, allowWiki = true): Promise<SerpResult[]> {
   const attempts: (() => Promise<SerpResult[]>)[] = [
+    // 0) مجمّع SearXNG الديناميكي (عشرات النسخ المفتوحة بدل قائمة ثابتة)
+    async () => {
+      const { searxPoolSearch } = await import("./searx-pool.server");
+      const rows = await searxPoolSearch(query);
+      return rows.map((r, i) => ({ rank: i + 1, title: r.title, url: r.url, snippet: r.snippet }));
+    },
     // 1) Brave Search (نتائج عربية حقيقية بلا مفتاح)
     async () => {
+
       const html = await getText(
         `https://search.brave.com/search?q=${encodeURIComponent(query)}`,
         7_000,
@@ -469,11 +477,25 @@ async function serpSearchOnce(query: string): Promise<SerpResult[]> {
   });
 
   try {
-    return await withBudget(Promise.any(race), 9_000, [] as SerpResult[]);
+    const rows = await withBudget(Promise.any(race), 13_000, [] as SerpResult[]);
+    if (rows.length) return rows;
   } catch {
-    return [];
+    // كل المحركات فشلت — ننتقل للملاذ الأخير
   }
+  if (!allowWiki) return [];
+  // ملاذ أخير: ويكيبيديا العربية (نتائج حقيقية مستقرة، أفضل من إرجاع فراغ)
+  const { wikipediaSearch } = await import("./searx-pool.server");
+  const wiki = clean(
+    (await wikipediaSearch(query)).map((r, i) => ({
+      rank: i + 1,
+      title: r.title,
+      url: r.url,
+      snippet: r.snippet,
+    })),
+  );
+  return wiki;
 }
+
 
 /** ينفّذ وعداً بميزانية زمنية صارمة ويعيد بديلاً عند التجاوز — يمنع تعليق الردود. */
 export async function withBudget<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
