@@ -16,7 +16,7 @@ export type Client = SupabaseClient<Database>;
 /** الموظفون الذين يعتمدون على بحث حقيقي قبل الإجابة. */
 export const RESEARCH_EMPLOYEES = new Set(["nour"]);
 
-/** القدرات التحريرية التي تستحق صورة رئيسية تلقائية مع المخرج. */
+/** القدرات التحريرية/البصرية التي تستحق صورة رئيسية تلقائية مع المخرج. */
 export const ARTICLE_SKILLS = new Set([
   "seo-article",
   "landing-copy",
@@ -24,7 +24,16 @@ export const ARTICLE_SKILLS = new Set([
   "publish-package",
   "repurpose",
   "content-refresh",
+  // سِراج — كل مخرج بصري يخرج ومعه صورة جاهزة للنشر
+  "social-post",
+  "post-visual",
+  "carousel",
+  "reel-script",
+  "launch-campaign",
+  "weekly-batch",
+  "ugc-testimonial",
 ]);
+
 
 export const evidenceRules = [
   "استخدم كتلة «أدلة ميدانية» أدناه كمصدر وحيد للأرقام والمنافسين والكلمات — لا تخترع بيانات غيرها.",
@@ -38,10 +47,18 @@ export const personas: Record<
 > = {
   sonny: {
     name: "سِراج",
-    role: "مدير السوشيال ميديا — يخطط المحتوى، يكتب المنشورات، ويجدول النشر.",
+    role: [
+      "مدير سوشيال ميديا عربي بخبرة 10 أعوام في الخليج ومصر والشام، أدار حسابات علامات تجزئة ومطاعم وعيادات ومتاجر إلكترونية.",
+      "تملك المنظومة كاملة: استخراج صوت العلامة وأسلوبها البصري، بناء أعمدة المحتوى، تقويم شهري مجدول بالأوقات،",
+      "كتابة المنشورات والكاروسيل وسكربتات الريلز والقصص، توليد الصور على هوية العلامة، إدارة التعليقات والرسائل،",
+      "رادار الترند وفجوات المنافسين، حملات الإطلاق، إعادة استخدام المحتوى عبر المنصات، وقراءة الأرقام لإعادة ضبط الخطة.",
+      "منهجك: هوك قبل كل شيء، ونشر بإيقاع ثابت، ورقم يقيس كل منشور، وتعديل الخطة بناءً على ما نجح فعلاً لا على الذوق.",
+      "تكتب عربية طبيعية باللهجة المطلوبة، وتحترم حدود كل منصة، ولا تختلق أرقاماً ولا شهادات عملاء ولا ادعاءات.",
+    ].join(" "),
     channel: "instagram",
     kind: "منشور",
   },
+
   eva: {
     name: "أمَل",
     role: "المساعدة التنفيذية — تفرز البريد، ترتّب المواعيد، وتكتب الردود.",
@@ -284,7 +301,12 @@ export async function executeSkill(
     try {
       const { ownedHeroImage, heroPrompt } = await import("./image-gen.server");
       const subjectForImage =
-        values["topic"] || values["keyword"] || values["product"] || skill.title;
+        values["topic"] ||
+        values["keyword"] ||
+        values["product"] ||
+        values["business"] ||
+        values["goal"] ||
+        skill.title;
       const alt = `${subjectForImage}`.slice(0, 120);
       const hero = await ownedHeroImage(
         client as unknown as Parameters<typeof ownedHeroImage>[0],
@@ -317,7 +339,12 @@ export async function executeSkill(
     .single();
   if (assistantError) throw new Error(assistantError.message);
 
-  const subject = params.values["keyword"] || params.values["topic"] || "";
+  const subject =
+    params.values["keyword"] ||
+    params.values["topic"] ||
+    params.values["business"] ||
+    params.values["product"] ||
+    "";
   const title = `${skill.title}${subject ? ` — ${subject}` : ""}${params.origin ? ` · ${params.origin}` : ""}`;
 
   const { data: task } = await client

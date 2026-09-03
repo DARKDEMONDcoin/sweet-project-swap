@@ -3,6 +3,9 @@
  * نور (المحتوى والسيو) هي أول موظفة مكتملة: منظومة سيو عربية كاملة من البحث
  * إلى الخطة إلى الكتابة إلى النشر إلى القياس وإعادة التحسين.
  */
+import { sonnySkills } from "./skills-sonny";
+
+
 
 export type SkillField = {
   name: string;
@@ -1059,7 +1062,7 @@ const nour: Skill[] = [
 ];
 
 
-export const skills: Skill[] = [...nour];
+export const skills: Skill[] = [...nour, ...sonnySkills];
 
 export function skillsFor(employeeId: string) {
   return skills.filter((s) => s.employeeId === employeeId);
