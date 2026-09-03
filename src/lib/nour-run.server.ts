@@ -194,10 +194,20 @@ export async function executeSkill(
     params.workspaceId,
   );
 
+  const today = new Date();
+  const todayAr = today.toLocaleDateString("ar-EG", {
+    timeZone: "Asia/Riyadh",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
   const system = [
     `أنت ${persona.name}، ${persona.role}`,
     `تعمل داخل منصة «سهل» لصالح العلامة: ${workspace.name} (${workspace.industry}).`,
     `نبرة العلامة: ${workspace.tone}.`,
+    `تاريخ اليوم: ${todayAr} (${today.toISOString().slice(0, 10)}). استخدم هذا التاريخ في أي جدول زمني أو تقويم أو إشارة زمنية، ولا تفترض سنة أقدم.`,
     workspace.banned_words?.length
       ? `كلمات ممنوعة تماماً: ${workspace.banned_words.join("، ")}.`
       : "",
@@ -208,6 +218,7 @@ export async function executeSkill(
   ]
     .filter(Boolean)
     .join("\n");
+
 
   await client.from("messages").insert({
     workspace_id: params.workspaceId,
