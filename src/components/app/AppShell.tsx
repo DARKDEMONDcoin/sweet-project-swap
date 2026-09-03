@@ -6,6 +6,7 @@ import {
   CheckCheck,
   ListChecks,
   CalendarClock,
+  LineChart,
   FileBarChart,
   BrainCircuit,
   Plug,
