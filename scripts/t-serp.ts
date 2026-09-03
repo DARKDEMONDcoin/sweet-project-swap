@@ -1,5 +1,5 @@
 import { serpSearch, competitorInventory } from "@/lib/seo-research.server";
-const qs=["أفضل عطور عربية رجالية","عطور عربية رجالية السعودية","أفضل شركات تأمين في السعودية","أسعار الذهب اليوم مصر","best arabic perfume brands"];
+const qs=["أفضل شركات شحن في الإمارات","تكلفة تصميم موقع الكتروني في مصر","افضل جامعات هندسة في الاردن","اسعار تذاكر الطيران الى تركيا","حاسبة الضريبة المضافة السعودية"];
 const t=Date.now();
 const r=await Promise.all(qs.map(async q=>{const s=Date.now();const v=await serpSearch(q);return {q,n:v.length,secs:+((Date.now()-s)/1000).toFixed(1),first:v[0]?.url}}));
 const inv=await competitorInventory("almowafir.com");
