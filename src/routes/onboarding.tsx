@@ -113,6 +113,28 @@ function Onboarding() {
           });
         }
       }
+      // نور تبدأ العمل من أول يوم: 5 أفكار محتوى كل صباح بلا طلب منك
+      try {
+        await createAutomation({
+          data: {
+            workspaceId: workspace.id,
+            employeeId: "nour",
+            skillId: "daily-ideas",
+            label: "5 أفكار محتوى كل صباح",
+            values: {
+              topic: industry || workspace.industry || name || workspace.name,
+              count: "5",
+            },
+            cadence: "daily",
+            dayOfWeek: 1,
+            hour: 6,
+            autoPublish: false,
+            active: true,
+          },
+        });
+      } catch (error) {
+        console.error("[onboarding] daily ideas automation failed:", error);
+      }
       void navigate({ to: "/app" });
     } finally {
       setSaving(false);
