@@ -64,6 +64,11 @@ function IntegrationsPage() {
   const setStatus = useSetIntegrationStatus(workspace?.id);
   const disconnect = useServerFn(disconnectProvider);
   const startGsc = useServerFn(startSearchConsoleOAuth);
+  const startConnect = useServerFn(startPipedreamConnect);
+  const syncAccounts = useServerFn(syncPipedreamAccounts);
+  const disconnectPd = useServerFn(disconnectPipedream);
+  const checkPipedream = useServerFn(pipedreamStatus);
+  const [pdReady, setPdReady] = useState<boolean | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [wpOpen, setWpOpen] = useState(false);
   const [gscOpen, setGscOpen] = useState(false);
@@ -75,16 +80,44 @@ function IntegrationsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const status = new URLSearchParams(window.location.search).get("gsc");
-    if (!status) return;
+    void checkPipedream({ data: undefined })
+      .then((r) => setPdReady(r.ready))
+      .catch(() => setPdReady(false));
+  }, [checkPipedream]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("gsc");
+    const pd = params.get("pd");
+    if (!status && !pd) return;
     if (status === "connected") setGscOpen(true);
-    else setError(gscMessages[status] ?? "تعذّر إكمال ربط Search Console.");
+    else if (status) setError(gscMessages[status] ?? "تعذّر إكمال ربط Search Console.");
+    if (pd === "failed") setError("لم يكتمل الربط عبر Pipedream — جرّب مرة أخرى.");
+    if (pd === "connected" && workspace) {
+      void syncAccounts({ data: { workspaceId: workspace.id } })
+        .then(() => qc.invalidateQueries({ queryKey: ["integrations", workspace.id] }))
+        .catch(() => setError("تم الربط لكن تعذّرت المزامنة — اضغط «تحديث الحسابات»."));
+    }
     window.history.replaceState({}, "", window.location.pathname);
-  }, []);
+  }, [workspace, qc, syncAccounts]);
 
   const all = integrations ?? [];
   const connected = all.filter((i) => i.status === "connected").length;
   const broken = all.filter((i) => i.status === "error");
+
+  const refresh = async () => {
+    if (!workspace) return;
+    setBusy("sync");
+    setError(null);
+    try {
+      await syncAccounts({ data: { workspaceId: workspace.id } });
+      void qc.invalidateQueries({ queryKey: ["integrations", workspace.id] });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "تعذّرت مزامنة الحسابات");
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const toggle = async (id: string, status: string, provider: string) => {
     setError(null);
@@ -130,6 +163,26 @@ function IntegrationsPage() {
         void qc.invalidateQueries({ queryKey: ["integrations", workspace?.id] });
       } catch (e) {
         setError(e instanceof Error ? e.message : "تعذّر فصل الحساب");
+      } finally {
+        setBusy(null);
+      }
+      return;
+    }
+
+    if (isPipedreamProvider(provider) && workspace) {
+      setBusy(id);
+      try {
+        if (status === "connected" || status === "error") {
+          await disconnectPd({ data: { workspaceId: workspace.id, provider } });
+          void qc.invalidateQueries({ queryKey: ["integrations", workspace.id] });
+        } else {
+          const { url } = await startConnect({
+            data: { workspaceId: workspace.id, provider, origin: window.location.origin },
+          });
+          window.location.href = url;
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "تعذّر بدء الربط عبر Pipedream");
       } finally {
         setBusy(null);
       }
