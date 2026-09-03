@@ -254,11 +254,15 @@ export async function executeSkill(
   // نستخدم مزوّداً بلا مفتاح وبلا حد يومي، والرابط دائم صالح للنشر مباشرة.
   if (ARTICLE_SKILLS.has(skill.id)) {
     try {
-      const { imageUrl, heroPrompt } = await import("./image-gen.server");
+      const { ownedHeroImage, heroPrompt } = await import("./image-gen.server");
       const subjectForImage =
         values["topic"] || values["keyword"] || values["product"] || skill.title;
       const alt = `${subjectForImage}`.slice(0, 120);
-      const hero = imageUrl(heroPrompt(subjectForImage, workspace.industry));
+      const hero = await ownedHeroImage(
+        client as unknown as Parameters<typeof ownedHeroImage>[0],
+        params.workspaceId,
+        heroPrompt(subjectForImage, workspace.industry),
+      );
       const lines = output.split("\n");
       const at = lines[0]?.startsWith("#") ? 1 : 0;
       lines.splice(at, 0, "", `![${alt}](${hero})`, "");
