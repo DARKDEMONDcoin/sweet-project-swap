@@ -340,9 +340,11 @@ export async function executeSkill(
     }
   }
 
-  if (research.used.length) {
-    output = `${output}\n\n> مصادر البيانات: ${research.used.join(" · ")}`;
+  const sources = [...research.used, ...live.used];
+  if (sources.length) {
+    output = `${output}\n\n> مصادر البيانات: ${sources.join(" · ")}`;
   }
+
 
 
   const { data: assistantRow, error: assistantError } = await client
