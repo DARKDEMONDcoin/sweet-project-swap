@@ -100,14 +100,102 @@ async function readProvider(
   switch (provider) {
     case "gmail":
       return readGmail(config, workspaceId, accountId);
+    case "outlook":
+      return readOutlook(config, workspaceId, accountId);
     case "calendar":
       return readCalendar(config, workspaceId, accountId);
     case "hubspot":
       return readHubspot(config, workspaceId, accountId);
+    case "facebook":
+    case "instagram":
+      return readMeta(config, workspaceId, accountId, provider);
     default:
       return "";
   }
 }
+
+/* ————— أوتلوك: رسائل غير مقروءة عبر Microsoft Graph ————— */
+
+type GraphMessages = {
+  value?: {
+    subject?: string;
+    bodyPreview?: string;
+    receivedDateTime?: string;
+    from?: { emailAddress?: { name?: string; address?: string } };
+  }[];
+};
+
+async function readOutlook(
+  config: Config,
+  workspaceId: string,
+  accountId: string,
+): Promise<string> {
+  const res = await proxyRequest<GraphMessages>(config, {
+    workspaceId,
+    accountId,
+    url: "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$top=12&$filter=isRead eq false&$select=subject,bodyPreview,receivedDateTime,from",
+  });
+  const items = res.value ?? [];
+  if (!items.length) return "لا رسائل غير مقروءة في أوتلوك.";
+  return items
+    .map(
+      (m) =>
+        `- من: ${m.from?.emailAddress?.name ?? m.from?.emailAddress?.address ?? "?"} | الموضوع: ${m.subject ?? "بلا عنوان"} | ${m.receivedDateTime ?? ""}\n  ${(m.bodyPreview ?? "").slice(0, 200)}`,
+    )
+    .join("\n");
+}
+
+/* ————— ميتا: آخر منشورات الصفحة / حساب إنستجرام ————— */
+
+type MetaAccounts = { data?: { id: string; name?: string; instagram_business_account?: { id: string } }[] };
+type MetaPosts = {
+  data?: {
+    message?: string;
+    caption?: string;
+    created_time?: string;
+    timestamp?: string;
+    permalink?: string;
+    like_count?: number;
+    comments_count?: number;
+  }[];
+};
+
+async function readMeta(
+  config: Config,
+  workspaceId: string,
+  accountId: string,
+  provider: "facebook" | "instagram",
+): Promise<string> {
+  const accounts = await proxyRequest<MetaAccounts>(config, {
+    workspaceId,
+    accountId,
+    url: "https://graph.facebook.com/v21.0/me/accounts?fields=id,name,instagram_business_account&limit=5",
+  });
+  const page = accounts.data?.[0];
+  if (!page) return "لا صفحة مرتبطة بالحساب.";
+
+  const target =
+    provider === "instagram" ? page.instagram_business_account?.id : page.id;
+  if (!target) return "لا حساب إنستجرام احترافي مرتبط بالصفحة.";
+
+  const url =
+    provider === "instagram"
+      ? `https://graph.facebook.com/v21.0/${target}/media?fields=caption,timestamp,permalink,like_count,comments_count&limit=10`
+      : `https://graph.facebook.com/v21.0/${target}/posts?fields=message,created_time,permalink_url&limit=10`;
+
+  const posts = await proxyRequest<MetaPosts>(config, { workspaceId, accountId, url });
+  const items = posts.data ?? [];
+  if (!items.length) return "لا منشورات حديثة.";
+  return items
+    .map(
+      (p) =>
+        `- ${p.timestamp ?? p.created_time ?? "?"} | ${(p.caption ?? p.message ?? "").slice(0, 160)}${
+          p.like_count != null ? ` | إعجابات: ${p.like_count}` : ""
+        }${p.comments_count != null ? ` | تعليقات: ${p.comments_count}` : ""}`,
+    )
+    .join("\n");
+}
+
 
 /* ————— جيميل: آخر الرسائل غير المقروءة في صندوق الوارد ————— */
 
