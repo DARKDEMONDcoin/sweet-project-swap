@@ -19,10 +19,14 @@ export type ResearchPlan = {
 };
 
 const OPENROUTER = "https://openrouter.ai/api/v1/chat/completions";
+const GEMINI = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+
+/** نماذج Google AI Studio (المزوّد الأساسي) بالترتيب. */
+export const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
 
 /**
  * أفضل النماذج المجانية على OpenRouter بترتيب مُختبَر (جودة عربية + سرعة + توافر)،
- * مع تجاوز تلقائي عند 429/5xx أو رد فارغ أو تجاوز المهلة.
+ * تُستخدم كاحتياطي عند فشل Gemini.
  */
 export const FREE_MODELS = [
   "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -31,6 +35,7 @@ export const FREE_MODELS = [
   "minimax/minimax-m2.7:free",
   "z-ai/glm-5.2:free",
 ];
+
 
 export type ChatOptions = {
   json?: boolean;
