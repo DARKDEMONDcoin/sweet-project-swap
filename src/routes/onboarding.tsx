@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Check, Sparkles, Loader2 } from "lucide-react";
 
+import { useServerFn } from "@tanstack/react-start";
+
 import { AppIcon, appLabel } from "@/components/site/AppIcon";
 import { team } from "@/data/team";
+import { saveAutomation } from "@/lib/automations.functions";
 import {
   useAddBrainItem,
   useIntegrations,
