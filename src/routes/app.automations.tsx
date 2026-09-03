@@ -45,6 +45,7 @@ function Form({
   const qc = useQueryClient();
   const save = useServerFn(saveAutomation);
   const nourSkills = useMemo(() => skillsFor("nour"), []);
+  const sonnySkillList = useMemo(() => skillsFor("sonny"), []);
   const [skillId, setSkillId] = useState(nourSkills[0]?.id ?? "");
   const skill: Skill | undefined = getSkill(skillId);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -66,7 +67,7 @@ function Form({
       save({
         data: {
           workspaceId,
-          employeeId: "nour",
+          employeeId: skill?.employeeId ?? "nour",
           skillId,
           label: label.trim() || (skill?.title ?? "جدولة"),
           values,
@@ -102,11 +103,20 @@ function Form({
           onChange={(e) => pick(e.target.value)}
           className="mt-1.5 w-full rounded-2xl border border-border bg-background px-3 py-2.5 text-sm"
         >
-          {nourSkills.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.title}
-            </option>
-          ))}
+          <optgroup label="نور — المحتوى والسيو">
+            {nourSkills.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.title}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="سِراج — السوشيال ميديا">
+            {sonnySkillList.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.title}
+              </option>
+            ))}
+          </optgroup>
         </select>
         {skill ? <p className="mt-1.5 text-xs text-muted-foreground">{skill.summary}</p> : null}
 
