@@ -130,6 +130,30 @@ function needsResearch(message: string): boolean {
   return signals.some((s) => lower.includes(s));
 }
 
+/**
+ * تشذيب المقدمات والمجاملات («أهلاً بك»، «بصفتي…»، «يسعدني أن أقدم…»)
+ * حتى يبدأ كل مخرج بالمحتوى القابل للاستخدام مباشرة.
+ */
+export function stripPreamble(text: string): string {
+  const lines = text.split("\n");
+  const greeting =
+    /^(أهلاً|أهلا|مرحباً|مرحبا|بالتأكيد|تفضل|تفضلي|حسناً|حسنا|بصفتي|يسعدني|سعيدة|إليك|اليك|فيما يلي|بناءً على طلبك|بناء على طلبك)/;
+  while (lines.length) {
+    const first = (lines[0] ?? "").trim();
+    if (!first) {
+      lines.shift();
+      continue;
+    }
+    if (/^[#|!>\-*\d]/.test(first)) break;
+    if (greeting.test(first) && first.length < 400) {
+      lines.shift();
+      continue;
+    }
+    break;
+  }
+  return lines.join("\n").trim();
+}
+
 
 export type SkillRun = {
   output: string;
