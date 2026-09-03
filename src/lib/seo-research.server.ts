@@ -205,10 +205,11 @@ export async function serpSearch(query: string): Promise<SerpResult[]> {
 
   // تحت الضغط المتوازي تخنق المحركات المجانية الطلبات وترجع صفراً؛ نعيد المحاولة
   // مرتين بتباعد متزايد حتى لا يعود بحث حقيقي فارغاً بسبب اختناق لحظي.
-  let results = await queued(() => serpSearchOnce(query), 250);
+  let results = await queued(() => serpSearchOnce(query, false), 250);
   for (let attempt = 0; !results.length && attempt < 2; attempt++) {
     await new Promise((r) => setTimeout(r, 900 * (attempt + 1)));
-    results = await queued(() => serpSearchOnce(query), 250);
+    // المحاولة الأخيرة فقط تسمح بالملاذ الأخير (ويكيبيديا) حتى لا يطغى على نتائج الويب.
+    results = await queued(() => serpSearchOnce(query, attempt === 1), 250);
   }
   if (results.length) {
     serpCache.set(query, results);
@@ -259,7 +260,7 @@ function genericLinks(html: string, excludeHosts: string[]): SerpResult[] {
   return out;
 }
 
-async function serpSearchOnce(query: string): Promise<SerpResult[]> {
+async function serpSearchOnce(query: string, allowWiki = true): Promise<SerpResult[]> {
   const attempts: (() => Promise<SerpResult[]>)[] = [
     // 0) مجمّع SearXNG الديناميكي (عشرات النسخ المفتوحة بدل قائمة ثابتة)
     async () => {
@@ -481,6 +482,7 @@ async function serpSearchOnce(query: string): Promise<SerpResult[]> {
   } catch {
     // كل المحركات فشلت — ننتقل للملاذ الأخير
   }
+  if (!allowWiki) return [];
   // ملاذ أخير: ويكيبيديا العربية (نتائج حقيقية مستقرة، أفضل من إرجاع فراغ)
   const { wikipediaSearch } = await import("./searx-pool.server");
   const wiki = clean(
