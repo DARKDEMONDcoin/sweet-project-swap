@@ -32,7 +32,13 @@ export const ARTICLE_SKILLS = new Set([
   "launch-campaign",
   "weekly-batch",
   "ugc-testimonial",
+  // دانة — كل مخرج تصميمي يخرج ومعه صورة مولّدة فعلياً
+  "design-image",
+  "ad-creative",
+  "product-shots",
+  "visual-concept",
 ]);
+
 
 
 export const evidenceRules = [
