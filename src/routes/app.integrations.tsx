@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ShieldCheck, RefreshCw, Loader2 } from "lucide-react";
+import { ShieldCheck, RefreshCw, Loader2, Plug } from "lucide-react";
 
 import { AppShell } from "@/components/app/AppShell";
 import { AppIcon, appLabel } from "@/components/site/AppIcon";
@@ -15,8 +15,15 @@ import { WebflowConnect } from "@/components/app/WebflowConnect";
 import { GhostConnect } from "@/components/app/GhostConnect";
 import { team } from "@/data/team";
 import { integrationStatusLabel } from "@/data/app";
+import { isPipedreamProvider, pipedreamApp } from "@/data/pipedream-apps";
 import { useIntegrations, useSetIntegrationStatus, useWorkspace } from "@/lib/data";
 import { disconnectProvider } from "@/lib/integrations.functions";
+import {
+  disconnectPipedream,
+  pipedreamStatus,
+  startPipedreamConnect,
+  syncPipedreamAccounts,
+} from "@/lib/pipedream.functions";
 import { startSearchConsoleOAuth } from "@/lib/gsc.functions";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +38,7 @@ export const Route = createFileRoute("/app/integrations")({
   component: IntegrationsPage,
 });
 
-/** المنصات المربوطة ربطاً حقيقياً (لا محاكاة). */
+/** المنصات المربوطة ربطاً مباشراً من داخل المنصة (بدون وسيط). */
 const realProviders = new Set([
   "wordpress",
   "search-console",
@@ -57,6 +64,11 @@ function IntegrationsPage() {
   const setStatus = useSetIntegrationStatus(workspace?.id);
   const disconnect = useServerFn(disconnectProvider);
   const startGsc = useServerFn(startSearchConsoleOAuth);
+  const startConnect = useServerFn(startPipedreamConnect);
+  const syncAccounts = useServerFn(syncPipedreamAccounts);
+  const disconnectPd = useServerFn(disconnectPipedream);
+  const checkPipedream = useServerFn(pipedreamStatus);
+  const [pdReady, setPdReady] = useState<boolean | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [wpOpen, setWpOpen] = useState(false);
   const [gscOpen, setGscOpen] = useState(false);
@@ -68,16 +80,44 @@ function IntegrationsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const status = new URLSearchParams(window.location.search).get("gsc");
-    if (!status) return;
+    void checkPipedream({ data: undefined })
+      .then((r) => setPdReady(r.ready))
+      .catch(() => setPdReady(false));
+  }, [checkPipedream]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("gsc");
+    const pd = params.get("pd");
+    if (!status && !pd) return;
     if (status === "connected") setGscOpen(true);
-    else setError(gscMessages[status] ?? "تعذّر إكمال ربط Search Console.");
+    else if (status) setError(gscMessages[status] ?? "تعذّر إكمال ربط Search Console.");
+    if (pd === "failed") setError("لم يكتمل الربط عبر Pipedream — جرّب مرة أخرى.");
+    if (pd === "connected" && workspace) {
+      void syncAccounts({ data: { workspaceId: workspace.id } })
+        .then(() => qc.invalidateQueries({ queryKey: ["integrations", workspace.id] }))
+        .catch(() => setError("تم الربط لكن تعذّرت المزامنة — اضغط «تحديث الحسابات»."));
+    }
     window.history.replaceState({}, "", window.location.pathname);
-  }, []);
+  }, [workspace, qc, syncAccounts]);
 
   const all = integrations ?? [];
   const connected = all.filter((i) => i.status === "connected").length;
   const broken = all.filter((i) => i.status === "error");
+
+  const refresh = async () => {
+    if (!workspace) return;
+    setBusy("sync");
+    setError(null);
+    try {
+      await syncAccounts({ data: { workspaceId: workspace.id } });
+      void qc.invalidateQueries({ queryKey: ["integrations", workspace.id] });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "تعذّرت مزامنة الحسابات");
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const toggle = async (id: string, status: string, provider: string) => {
     setError(null);
@@ -123,6 +163,26 @@ function IntegrationsPage() {
         void qc.invalidateQueries({ queryKey: ["integrations", workspace?.id] });
       } catch (e) {
         setError(e instanceof Error ? e.message : "تعذّر فصل الحساب");
+      } finally {
+        setBusy(null);
+      }
+      return;
+    }
+
+    if (isPipedreamProvider(provider) && workspace) {
+      setBusy(id);
+      try {
+        if (status === "connected" || status === "error") {
+          await disconnectPd({ data: { workspaceId: workspace.id, provider } });
+          void qc.invalidateQueries({ queryKey: ["integrations", workspace.id] });
+        } else {
+          const { url } = await startConnect({
+            data: { workspaceId: workspace.id, provider, origin: window.location.origin },
+          });
+          window.location.href = url;
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "تعذّر بدء الربط عبر Pipedream");
       } finally {
         setBusy(null);
       }
@@ -187,6 +247,22 @@ function IntegrationsPage() {
         </p>
       ) : null}
 
+      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-secondary/50 p-4">
+        <Plug className="size-5 shrink-0 text-jade-deep" />
+        <p className="flex-1 text-sm font-semibold">
+          {pdReady === false
+            ? "وسيط التكاملات (Pipedream) غير مفعّل بعد — أضف مفاتيح Pipedream ليعمل ربط منصات التواصل والبريد وCRM."
+            : "منصات التواصل والبريد وCRM تُربط عبر Pipedream — لا نحتفظ بأي كلمات مرور أو توكنات لديك."}
+        </p>
+        <button
+          onClick={() => void refresh()}
+          disabled={busy === "sync" || !workspace}
+          className="shrink-0 rounded-full bg-foreground px-3.5 py-1.5 text-xs font-bold text-background disabled:opacity-60"
+        >
+          {busy === "sync" ? "…" : "تحديث الحسابات"}
+        </button>
+      </div>
+
       {broken.length ? (
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-coral/30 bg-coral/8 p-4">
           <RefreshCw className="size-5 shrink-0 text-coral" />
@@ -235,10 +311,16 @@ function IntegrationsPage() {
                             <span className="shrink-0 rounded-full bg-jade/12 px-2 py-0.5 text-[0.65rem] font-bold text-jade-deep">
                               ربط مباشر
                             </span>
+                          ) : isPipedreamProvider(i.provider) ? (
+                            <span className="shrink-0 rounded-full bg-sky/12 px-2 py-0.5 text-[0.65rem] font-bold text-sky">
+                              عبر Pipedream
+                            </span>
                           ) : null}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {i.account ?? "لم يُربط بعد"}
+                          {i.account ??
+                            pipedreamApp(i.provider)?.note ??
+                            "لم يُربط بعد"}
                         </span>
                       </span>
 
