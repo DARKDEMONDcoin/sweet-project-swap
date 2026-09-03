@@ -22,7 +22,7 @@ const OPENROUTER = "https://openrouter.ai/api/v1/chat/completions";
 const GEMINI = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 /** نماذج Google AI Studio (المزوّد الأساسي) بالترتيب. */
-export const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
+export const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite"];
 
 /**
  * أفضل النماذج المجانية على OpenRouter بترتيب مُختبَر (جودة عربية + سرعة + توافر)،
