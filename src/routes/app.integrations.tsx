@@ -311,10 +311,16 @@ function IntegrationsPage() {
                             <span className="shrink-0 rounded-full bg-jade/12 px-2 py-0.5 text-[0.65rem] font-bold text-jade-deep">
                               ربط مباشر
                             </span>
+                          ) : isPipedreamProvider(i.provider) ? (
+                            <span className="shrink-0 rounded-full bg-sky/12 px-2 py-0.5 text-[0.65rem] font-bold text-sky">
+                              عبر Pipedream
+                            </span>
                           ) : null}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {i.account ?? "لم يُربط بعد"}
+                          {i.account ??
+                            pipedreamApp(i.provider)?.note ??
+                            "لم يُربط بعد"}
                         </span>
                       </span>
 
