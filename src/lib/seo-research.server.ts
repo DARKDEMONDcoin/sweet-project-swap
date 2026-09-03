@@ -615,8 +615,32 @@ export type PageAudit = {
   error?: string;
 };
 
-/** قراءة أي صفحة وتحليلها تقنياً — مجاني (زحف مباشر). */
+/**
+ * قارئ احتياطي مجاني للصفحات التي تعتمد على JavaScript (تيك توك، يوتيوب، متاجر SPA…):
+ * يعيد نصاً نظيفاً بصيغة Markdown بلا مفتاح. لا يتجاوز جدران تسجيل الدخول (فيسبوك/إنستغرام).
+ */
+async function readerFallback(url: string): Promise<{ title: string; text: string } | null> {
+  try {
+    const raw = await getText(`https://r.jina.ai/${url}`, 20_000);
+    if (!raw || raw.length < 80) return null;
+    const title = /^Title:\s*(.+)$/m.exec(raw)?.[1]?.trim() ?? "";
+    const body = raw
+      .replace(/^Title:.*$/m, "")
+      .replace(/^URL Source:.*$/m, "")
+      .replace(/^Markdown Content:/m, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (body.split(/\s+/).length < 25) return null;
+    return { title, text: body.slice(0, 12_000) };
+  } catch {
+    return null;
+  }
+}
+
+/** قراءة أي صفحة وتحليلها تقنياً — مجاني (زحف مباشر + قارئ احتياطي للصفحات الديناميكية). */
 export async function auditPage(url: string): Promise<PageAudit> {
+
   const empty: PageAudit = {
     url,
     status: 0,
