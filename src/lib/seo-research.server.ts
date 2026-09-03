@@ -687,17 +687,30 @@ export async function auditPage(url: string): Promise<PageAudit> {
     const { extractArticle } = await import("./readability.server");
     const article = extractArticle(html, target.toString());
     const rawWords = body ? body.split(/\s+/).length : 0;
+    let mainText = article?.text.slice(0, 12_000) ?? "";
+    let wordCount = article?.wordCount || rawWords;
+    let title = pick(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    // صفحات تعتمد JavaScript (تيك توك، يوتيوب، متاجر SPA) تعود شبه فارغة من الزحف المباشر:
+    // نقرأها عبر قارئ نصي مجاني بدل تسليم تحليل فارغ.
+    if (wordCount < 120) {
+      const reader = await readerFallback(target.toString());
+      if (reader && reader.text.split(/\s+/).length > wordCount) {
+        mainText = reader.text;
+        wordCount = reader.text.split(/\s+/).length;
+        title = title || reader.title;
+      }
+    }
     return {
       url: target.toString(),
       status: res.status,
-      title: pick(/<title[^>]*>([\s\S]*?)<\/title>/i),
+      title,
       metaDescription:
         /<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i.exec(html)?.[1] ?? "",
       h1: all(/<h1[^>]*>([\s\S]*?)<\/h1>/i, 5),
       h2: all(/<h2[^>]*>([\s\S]*?)<\/h2>/i, 15),
-      wordCount: article?.wordCount || rawWords,
+      wordCount,
       rawWordCount: rawWords,
-      mainText: article?.text.slice(0, 12_000) ?? "",
+      mainText,
       excerpt: article?.excerpt ?? "",
       lang: /<html[^>]+lang=["']([^"']+)["']/i.exec(html)?.[1] ?? "",
       hasCanonical: /rel=["']canonical["']/i.test(html),
@@ -710,9 +723,20 @@ export async function auditPage(url: string): Promise<PageAudit> {
     };
 
   } catch (error) {
+    const reader = await readerFallback(url);
+    if (reader) {
+      return {
+        ...empty,
+        status: 200,
+        title: reader.title,
+        mainText: reader.text,
+        wordCount: reader.text.split(/\s+/).length,
+      };
+    }
     return { ...empty, error: error instanceof Error ? error.message : "تعذّر جلب الصفحة" };
   }
 }
+
 
 export type KeywordMetric = {
   keyword: string;
