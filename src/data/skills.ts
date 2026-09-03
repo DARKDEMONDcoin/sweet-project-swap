@@ -4,6 +4,10 @@
  * إلى الخطة إلى الكتابة إلى النشر إلى القياس وإعادة التحسين.
  */
 import { sonnySkills } from "./skills-sonny";
+import { evaSkills } from "./skills-eva";
+import { samSkills } from "./skills-sam";
+import { danaSkills } from "./skills-dana";
+import { adamSkills } from "./skills-adam";
 
 
 
@@ -1062,7 +1066,14 @@ const nour: Skill[] = [
 ];
 
 
-export const skills: Skill[] = [...nour, ...sonnySkills];
+export const skills: Skill[] = [
+  ...nour,
+  ...sonnySkills,
+  ...evaSkills,
+  ...samSkills,
+  ...danaSkills,
+  ...adamSkills,
+];
 
 export function skillsFor(employeeId: string) {
   return skills.filter((s) => s.employeeId === employeeId);
