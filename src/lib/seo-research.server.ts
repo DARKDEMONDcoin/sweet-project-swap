@@ -557,6 +557,12 @@ export type PageAudit = {
   h1: string[];
   h2: string[];
   wordCount: number;
+  /** عدد كلمات الصفحة كاملة قبل استبعاد القوائم/الفوتر. */
+  rawWordCount?: number;
+  /** متن المقال المستخرج بـReadability (مفيد لتحليل المصطلحات والفجوات). */
+  mainText?: string;
+  excerpt?: string;
+
   lang: string;
   hasCanonical: boolean;
   hasSchema: boolean;
