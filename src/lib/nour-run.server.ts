@@ -16,6 +16,16 @@ export type Client = SupabaseClient<Database>;
 /** الموظفون الذين يعتمدون على بحث حقيقي قبل الإجابة. */
 export const RESEARCH_EMPLOYEES = new Set(["nour"]);
 
+/** القدرات التحريرية التي تستحق صورة رئيسية تلقائية مع المخرج. */
+export const ARTICLE_SKILLS = new Set([
+  "seo-article",
+  "landing-copy",
+  "comparison-page",
+  "publish-package",
+  "repurpose",
+  "content-refresh",
+]);
+
 export const evidenceRules = [
   "استخدم كتلة «أدلة ميدانية» أدناه كمصدر وحيد للأرقام والمنافسين والكلمات — لا تخترع بيانات غيرها.",
   "اذكر مصدر كل رقم مهم (Search Console، اقتراحات البحث، نتائج البحث، تحليل الصفحة).",
@@ -194,10 +204,20 @@ export async function executeSkill(
     params.workspaceId,
   );
 
+  const today = new Date();
+  const todayAr = today.toLocaleDateString("ar-EG", {
+    timeZone: "Asia/Riyadh",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
   const system = [
     `أنت ${persona.name}، ${persona.role}`,
     `تعمل داخل منصة «سهل» لصالح العلامة: ${workspace.name} (${workspace.industry}).`,
     `نبرة العلامة: ${workspace.tone}.`,
+    `تاريخ اليوم: ${todayAr} (${today.toISOString().slice(0, 10)}). استخدم هذا التاريخ في أي جدول زمني أو تقويم أو إشارة زمنية، ولا تفترض سنة أقدم.`,
     workspace.banned_words?.length
       ? `كلمات ممنوعة تماماً: ${workspace.banned_words.join("، ")}.`
       : "",
@@ -208,6 +228,7 @@ export async function executeSkill(
   ]
     .filter(Boolean)
     .join("\n");
+
 
   await client.from("messages").insert({
     workspace_id: params.workspaceId,
@@ -228,9 +249,29 @@ export async function executeSkill(
   ).trim();
 
   if (!output) throw new Error("لم يصل مخرج من الموظف — أعد المحاولة.");
+
+  // صورة رئيسية مجانية لكل مخرج تحريري (مقال/صفحة/حزمة نشر) — مثل Penny وأدق منها:
+  // نستخدم مزوّداً بلا مفتاح وبلا حد يومي، والرابط دائم صالح للنشر مباشرة.
+  if (ARTICLE_SKILLS.has(skill.id)) {
+    try {
+      const { imageUrl, heroPrompt } = await import("./image-gen.server");
+      const subjectForImage =
+        values["topic"] || values["keyword"] || values["product"] || skill.title;
+      const alt = `${subjectForImage}`.slice(0, 120);
+      const hero = imageUrl(heroPrompt(subjectForImage, workspace.industry));
+      const lines = output.split("\n");
+      const at = lines[0]?.startsWith("#") ? 1 : 0;
+      lines.splice(at, 0, "", `![${alt}](${hero})`, "");
+      output = lines.join("\n");
+    } catch (error) {
+      console.error("[nour] hero image failed:", error);
+    }
+  }
+
   if (research.used.length) {
     output = `${output}\n\n> مصادر البيانات: ${research.used.join(" · ")}`;
   }
+
 
   const { data: assistantRow, error: assistantError } = await client
     .from("messages")
