@@ -16,6 +16,16 @@ export type Client = SupabaseClient<Database>;
 /** الموظفون الذين يعتمدون على بحث حقيقي قبل الإجابة. */
 export const RESEARCH_EMPLOYEES = new Set(["nour"]);
 
+/** القدرات التحريرية التي تستحق صورة رئيسية تلقائية مع المخرج. */
+export const ARTICLE_SKILLS = new Set([
+  "seo-article",
+  "landing-copy",
+  "comparison-page",
+  "publish-package",
+  "repurpose",
+  "content-refresh",
+]);
+
 export const evidenceRules = [
   "استخدم كتلة «أدلة ميدانية» أدناه كمصدر وحيد للأرقام والمنافسين والكلمات — لا تخترع بيانات غيرها.",
   "اذكر مصدر كل رقم مهم (Search Console، اقتراحات البحث، نتائج البحث، تحليل الصفحة).",
