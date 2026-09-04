@@ -10,6 +10,41 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { pipedreamApp } from "@/data/pipedream-apps";
 import { pipedreamConfig, proxyRequest } from "./pipedream.server";
+import {
+  pageTarget,
+  facebookComments,
+  instagramComments,
+  facebookMessages,
+  inboxSummary,
+} from "./social-inbox.server";
+
+/** منشورات ميتا + صندوق التعليقات والرسائل غير المُجاب عليها. */
+async function readMetaWithInbox(
+  config: Config,
+  workspaceId: string,
+  accountId: string,
+  provider: "facebook" | "instagram",
+): Promise<string> {
+  const posts = await readMeta(config, workspaceId, accountId, provider);
+  try {
+    const page = await pageTarget(config, workspaceId, accountId);
+    if (!page) return posts;
+    const [comments, messages] = await Promise.all([
+      provider === "instagram"
+        ? instagramComments(config, workspaceId, accountId, page)
+        : facebookComments(config, workspaceId, accountId, page),
+      provider === "facebook"
+        ? facebookMessages(config, workspaceId, accountId, page)
+        : Promise.resolve([]),
+    ]);
+    const inbox = inboxSummary(comments, messages);
+    return inbox ? `${posts}\n\n${inbox}` : posts;
+  } catch (error) {
+    console.error("[live] social inbox failed:", error);
+    return posts;
+  }
+}
+
 
 type Admin = SupabaseClient<Database>;
 
@@ -108,7 +143,7 @@ async function readProvider(
       return readHubspot(config, workspaceId, accountId);
     case "facebook":
     case "instagram":
-      return readMeta(config, workspaceId, accountId, provider);
+      return readMetaWithInbox(config, workspaceId, accountId, provider);
     default:
       return "";
   }

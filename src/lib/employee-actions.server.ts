@@ -7,23 +7,46 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
 import { pipedreamAction, pipedreamApp } from "@/data/pipedream-apps";
-import { pipedreamConfig, runAction, missingConfigError } from "./pipedream.server";
+import {
+  pipedreamConfig,
+  runAction,
+  missingConfigError,
+  type PipedreamConfig,
+} from "./pipedream.server";
+import {
+  pageTarget,
+  replyToFacebookComment,
+  replyToInstagramComment,
+  hideComment,
+  replyToMessenger,
+} from "./social-inbox.server";
+
 
 type Admin = SupabaseClient<Database>;
+
+export type CustomActionContext = {
+  config: PipedreamConfig;
+  workspaceId: string;
+  accountId: string;
+  values: Record<string, string>;
+};
 
 export type EmployeeActionDef = {
   /** معرّف الإجراء داخل منصتنا. */
   id: string;
   employeeId: string;
   provider: string;
-  /** مفتاح الإجراء داخل خريطة التطبيق. */
-  action: string;
+  /** مفتاح الإجراء داخل خريطة التطبيق (لإجراءات Pipedream الجاهزة). */
+  action?: string;
   label: string;
   /** الحقول المطلوبة من المستخدم. */
   inputs: { name: string; label: string; required?: boolean }[];
   /** تحويل مدخلات المستخدم إلى خصائص إجراء Pipedream. */
-  toProps: (v: Record<string, string>) => Record<string, unknown>;
+  toProps?: (v: Record<string, string>) => Record<string, unknown>;
+  /** تنفيذ مباشر عبر وكيل Pipedream حين لا يوجد إجراء جاهز. */
+  run?: (ctx: CustomActionContext) => Promise<unknown>;
 };
+
 
 export const employeeActions: EmployeeActionDef[] = [
   {
@@ -174,6 +197,137 @@ export const employeeActions: EmployeeActionDef[] = [
     ],
     toProps: (v) => ({ conversation: v["channel"], text: v["text"] }),
   },
+
+  /* ————— السوشيال: تعليقات ورسائل الصفحات ————— */
+  {
+    id: "sonny-reply-fb-comment",
+    employeeId: "sonny",
+    provider: "facebook",
+    label: "الرد على تعليق في فيسبوك",
+    inputs: [
+      { name: "commentId", label: "معرّف التعليق", required: true },
+      { name: "message", label: "نص الرد", required: true },
+    ],
+    run: async ({ config, workspaceId, accountId, values }) => {
+      const page = await requirePage(config, workspaceId, accountId);
+      return replyToFacebookComment(
+        config,
+        workspaceId,
+        accountId,
+        page,
+        values["commentId"]!,
+        values["message"]!,
+      );
+    },
+  },
+  {
+    id: "sonny-hide-fb-comment",
+    employeeId: "sonny",
+    provider: "facebook",
+    label: "إخفاء تعليق مسيء",
+    inputs: [{ name: "commentId", label: "معرّف التعليق", required: true }],
+    run: async ({ config, workspaceId, accountId, values }) => {
+      const page = await requirePage(config, workspaceId, accountId);
+      return hideComment(config, workspaceId, accountId, page, values["commentId"]!, true);
+    },
+  },
+  {
+    id: "sonny-reply-messenger",
+    employeeId: "sonny",
+    provider: "facebook",
+    label: "الرد على رسالة ماسنجر",
+    inputs: [
+      { name: "recipientId", label: "معرّف المرسِل", required: true },
+      { name: "text", label: "نص الرد", required: true },
+    ],
+    run: async ({ config, workspaceId, accountId, values }) => {
+      const page = await requirePage(config, workspaceId, accountId);
+      return replyToMessenger(
+        config,
+        workspaceId,
+        accountId,
+        page,
+        values["recipientId"]!,
+        values["text"]!,
+      );
+    },
+  },
+  {
+    id: "sonny-reply-ig-comment",
+    employeeId: "sonny",
+    provider: "instagram",
+    label: "الرد على تعليق في إنستجرام",
+    inputs: [
+      { name: "commentId", label: "معرّف التعليق", required: true },
+      { name: "message", label: "نص الرد", required: true },
+    ],
+    run: async ({ config, workspaceId, accountId, values }) => {
+      const page = await requirePage(config, workspaceId, accountId);
+      return replyToInstagramComment(
+        config,
+        workspaceId,
+        accountId,
+        page,
+        values["commentId"]!,
+        values["message"]!,
+      );
+    },
+  },
+
+  /* ————— CRM والبريد الجماعي ————— */
+  {
+    id: "sam-create-lead",
+    employeeId: "sam",
+    provider: "salesforce",
+    action: "createLead",
+    label: "إضافة عميل محتمل في سيلزفورس",
+    inputs: [
+      { name: "LastName", label: "الاسم الأخير", required: true },
+      { name: "Company", label: "الشركة", required: true },
+      { name: "Email", label: "البريد" },
+      { name: "Phone", label: "الهاتف" },
+    ],
+    toProps: (v) => ({
+      LastName: v["LastName"],
+      Company: v["Company"],
+      Email: v["Email"] ?? "",
+      Phone: v["Phone"] ?? "",
+    }),
+  },
+  {
+    id: "sam-add-subscriber",
+    employeeId: "sam",
+    provider: "mailchimp",
+    action: "addSubscriber",
+    label: "إضافة مشترك في ميلتشمب",
+    inputs: [
+      { name: "listId", label: "معرّف القائمة", required: true },
+      { name: "email", label: "البريد", required: true },
+      { name: "status", label: "الحالة (subscribed/pending)" },
+    ],
+    toProps: (v) => ({
+      listId: v["listId"],
+      email: v["email"],
+      status: v["status"] || "subscribed",
+    }),
+  },
+  {
+    id: "team-notion-page",
+    employeeId: "*",
+    provider: "notion",
+    action: "createPage",
+    label: "حفظ صفحة في نوشن",
+    inputs: [
+      { name: "parentId", label: "معرّف الصفحة الأم", required: true },
+      { name: "title", label: "العنوان", required: true },
+      { name: "content", label: "المحتوى" },
+    ],
+    toProps: (v) => ({
+      parent: { page_id: v["parentId"] },
+      title: v["title"],
+      pageContent: v["content"] ?? "",
+    }),
+  },
 ];
 
 export function actionsFor(employeeId: string): EmployeeActionDef[] {
@@ -182,6 +336,16 @@ export function actionsFor(employeeId: string): EmployeeActionDef[] {
 
 export function getEmployeeAction(id: string): EmployeeActionDef | undefined {
   return employeeActions.find((a) => a.id === id);
+}
+
+async function requirePage(
+  config: PipedreamConfig,
+  workspaceId: string,
+  accountId: string,
+) {
+  const page = await pageTarget(config, workspaceId, accountId);
+  if (!page) throw new Error("لا توجد صفحة فيسبوك مرتبطة بالحساب المربوط.");
+  return page;
 }
 
 /** ينفّذ إجراءً فعلياً على حساب مربوط للمساحة. */
@@ -197,9 +361,10 @@ export async function runEmployeeActionServer(
     .map((i) => i.label);
   if (missing.length) throw new Error(`حقول ناقصة: ${missing.join("، ")}`);
 
-  const action = pipedreamAction(def.provider, def.action);
   const app = pipedreamApp(def.provider);
-  if (!action || !app) throw new Error("هذا الإجراء غير مدعوم على هذه المنصة بعد.");
+  if (!app) throw new Error("هذا الإجراء غير مدعوم على هذه المنصة بعد.");
+  const action = def.action ? pipedreamAction(def.provider, def.action) : undefined;
+  if (def.action && !action) throw new Error("هذا الإجراء غير مدعوم على هذه المنصة بعد.");
 
   const config = await pipedreamConfig();
   if (!config) throw missingConfigError();
@@ -213,14 +378,27 @@ export async function runEmployeeActionServer(
     .maybeSingle();
   if (!account) throw new Error(`${app.label} غير مربوط بعد — اربطه من صفحة التكاملات.`);
 
+  if (def.run) {
+    const result = await def.run({
+      config,
+      workspaceId: params.workspaceId,
+      accountId: account.account_id,
+      values: params.values,
+    });
+    return { actionId: def.id, provider: def.provider, result };
+  }
+
+  if (!action) throw new Error("هذا الإجراء غير مدعوم على هذه المنصة بعد.");
+
   const result = await runAction(config, {
     workspaceId: params.workspaceId,
     componentId: action.component,
     configuredProps: {
       [action.accountProp]: { authProvisionId: account.account_id },
-      ...def.toProps(params.values),
+      ...(def.toProps ? def.toProps(params.values) : {}),
     },
   });
 
   return { actionId: def.id, provider: def.provider, result };
 }
+
