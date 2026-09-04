@@ -22,6 +22,7 @@ import {
 } from "./social-inbox.server";
 import { publishThreads, createPin } from "./social-extra.server";
 import { metaAdsSummary } from "./ads-insights.server";
+import { sendWhatsappText, createDriveFolder } from "./messaging-extra.server";
 
 
 type Admin = SupabaseClient<Database>;
@@ -366,6 +367,52 @@ export const employeeActions: EmployeeActionDef[] = [
         ...(values["description"] ? { description: values["description"] } : {}),
         ...(values["link"] ? { link: values["link"] } : {}),
         ...(values["boardId"] ? { boardId: values["boardId"] } : {}),
+      }),
+  },
+
+  /* ————— واتساب وتيليجرام ودرايف ————— */
+  {
+    id: "eva-whatsapp-send",
+    employeeId: "eva",
+    provider: "whatsapp",
+    label: "إرسال رسالة واتساب لعميل",
+    inputs: [
+      { name: "to", label: "رقم العميل بصيغة دولية", required: true },
+      { name: "text", label: "نص الرسالة", required: true },
+      { name: "phoneNumberId", label: "معرّف رقم الإرسال (اختياري)" },
+    ],
+    run: ({ config, workspaceId, accountId, values }) =>
+      sendWhatsappText(config, workspaceId, accountId, {
+        to: values["to"]!,
+        text: values["text"]!,
+        ...(values["phoneNumberId"]?.trim() ? { phoneNumberId: values["phoneNumberId"].trim() } : {}),
+      }),
+  },
+  {
+    id: "team-telegram-send",
+    employeeId: "*",
+    provider: "telegram",
+    action: "send",
+    label: "إرسال رسالة تيليجرام",
+    inputs: [
+      { name: "chatId", label: "معرّف المحادثة", required: true },
+      { name: "text", label: "النص", required: true },
+    ],
+    toProps: (v) => ({ chatId: v["chatId"], text: v["text"] }),
+  },
+  {
+    id: "dana-drive-folder",
+    employeeId: "dana",
+    provider: "drive",
+    label: "إنشاء مجلد أصول في درايف",
+    inputs: [
+      { name: "name", label: "اسم المجلد", required: true },
+      { name: "parentId", label: "معرّف المجلد الأب (اختياري)" },
+    ],
+    run: ({ config, workspaceId, accountId, values }) =>
+      createDriveFolder(config, workspaceId, accountId, {
+        name: values["name"]!,
+        ...(values["parentId"]?.trim() ? { parentId: values["parentId"].trim() } : {}),
       }),
   },
 
