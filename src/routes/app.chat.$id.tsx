@@ -13,6 +13,8 @@ import { askEmployee, runSkill } from "@/lib/ai.functions";
 import { SkillPalette } from "@/components/app/SkillPalette";
 import { Markdown } from "@/components/app/Markdown";
 import { PublishToWordPress } from "@/components/app/PublishToWordPress";
+import { ActionPanel } from "@/components/app/ActionPanel";
+
 
 import { skillsFor, type Skill } from "@/data/skills";
 import { cn } from "@/lib/utils";
@@ -316,7 +318,16 @@ function ChatPage() {
             ))}
           </ul>
 
+          <ActionPanel
+            employeeId={id}
+            workspaceId={workspace?.id}
+            connected={(integrations ?? [])
+              .filter((i) => i.status === "connected")
+              .map((i) => i.provider)}
+          />
+
           <h2 className="mt-7 font-display font-black">ما يجيده</h2>
+
           <ul className="mt-3 space-y-2">
             {member.tasks.slice(0, 4).map((t) => (
               <li key={t} className="flex gap-2 text-sm text-ink-soft">
