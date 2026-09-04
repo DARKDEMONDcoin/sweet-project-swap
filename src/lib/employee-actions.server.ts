@@ -11,19 +11,29 @@ import { pipedreamConfig, runAction, missingConfigError } from "./pipedream.serv
 
 type Admin = SupabaseClient<Database>;
 
+export type CustomActionContext = {
+  config: PipedreamConfig;
+  workspaceId: string;
+  accountId: string;
+  values: Record<string, string>;
+};
+
 export type EmployeeActionDef = {
   /** معرّف الإجراء داخل منصتنا. */
   id: string;
   employeeId: string;
   provider: string;
-  /** مفتاح الإجراء داخل خريطة التطبيق. */
-  action: string;
+  /** مفتاح الإجراء داخل خريطة التطبيق (لإجراءات Pipedream الجاهزة). */
+  action?: string;
   label: string;
   /** الحقول المطلوبة من المستخدم. */
   inputs: { name: string; label: string; required?: boolean }[];
   /** تحويل مدخلات المستخدم إلى خصائص إجراء Pipedream. */
-  toProps: (v: Record<string, string>) => Record<string, unknown>;
+  toProps?: (v: Record<string, string>) => Record<string, unknown>;
+  /** تنفيذ مباشر عبر وكيل Pipedream حين لا يوجد إجراء جاهز. */
+  run?: (ctx: CustomActionContext) => Promise<unknown>;
 };
+
 
 export const employeeActions: EmployeeActionDef[] = [
   {
