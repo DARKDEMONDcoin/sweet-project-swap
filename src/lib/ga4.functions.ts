@@ -139,25 +139,13 @@ export const listGa4Properties = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ workspaceId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await assertOwner(context.supabase, data.workspaceId);
-    const token = await googleToken(data.workspaceId);
-    const res = await fetch(
-      "https://analyticsadmin.googleapis.com/v1beta/accountSummaries?pageSize=50",
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    const text = await res.text();
-    if (!res.ok) {
-      throw new Error(
-        res.status === 403
-          ? "حساب Google المربوط لا يملك صلاحية Analytics — أعد ربط Google واقبل صلاحية Analytics."
-          : `Analytics رفض الطلب [${res.status}]: ${text.slice(0, 160)}`,
-      );
-    }
-    const parsed = JSON.parse(text) as {
+    const { googleDataRequest } = await import("./google-data.server");
+    const parsed = await googleDataRequest<{
       accountSummaries?: {
         displayName?: string;
         propertySummaries?: { property?: string; displayName?: string }[];
       }[];
-    };
+    }>(data.workspaceId, "analytics", "https://analyticsadmin.googleapis.com/v1beta/accountSummaries?pageSize=50");
     const properties = (parsed.accountSummaries ?? []).flatMap((a) =>
       (a.propertySummaries ?? []).map((p) => ({
         id: (p.property ?? "").replace("properties/", ""),

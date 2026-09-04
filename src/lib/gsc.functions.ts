@@ -94,18 +94,19 @@ export const startSearchConsoleOAuth = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (owns !== true) throw new Error("Forbidden: لا تملك هذه مساحة العمل.");
 
-    const { clientId } = await googleCreds();
     const origin = new URL(getRequest().url).origin;
-    const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-    url.searchParams.set("client_id", clientId);
-    url.searchParams.set("redirect_uri", redirectUri(origin));
-    url.searchParams.set("response_type", "code");
-    url.searchParams.set("scope", `${SCOPE} https://www.googleapis.com/auth/userinfo.email`);
-    url.searchParams.set("access_type", "offline");
-    url.searchParams.set("prompt", "consent");
-    url.searchParams.set("include_granted_scopes", "true");
-    url.searchParams.set("state", await encodeState(data.workspaceId));
-    return { url: url.toString(), redirectUri: redirectUri(origin) };
+    const { pipedreamConfig, createConnectToken, missingConfigError } = await import("./pipedream.server");
+    const config = await pipedreamConfig();
+    if (!config) throw missingConfigError();
+    const token = await createConnectToken(config, data.workspaceId, [origin]);
+    const url = new URL(
+      token.connect_link_url ??
+        `https://pipedream.com/_static/connect.html?token=${encodeURIComponent(token.token)}`,
+    );
+    url.searchParams.set("app", "google_search_console");
+    url.searchParams.set("success_redirect_uri", `${origin}/app/integrations?pd=connected`);
+    url.searchParams.set("error_redirect_uri", `${origin}/app/integrations?pd=failed`);
+    return { url: url.toString(), redirectUri: `${origin}/app/integrations` };
   });
 
 export async function accessToken(refreshToken: string): Promise<string> {
@@ -157,16 +158,10 @@ export const listSearchConsoleSites = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ workspaceId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await assertOwner(context.supabase, data.workspaceId);
-    const config = await loadConfig(data.workspaceId);
-    const token = await accessToken(config.refreshToken);
-    const res = await fetch("https://searchconsole.googleapis.com/webmasters/v3/sites", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const text = await res.text();
-    if (!res.ok) throw new Error(`Search Console رفض الطلب [${res.status}]: ${text.slice(0, 200)}`);
-    const { siteEntry = [] } = JSON.parse(text) as {
+    const { googleDataRequest } = await import("./google-data.server");
+    const { siteEntry = [] } = await googleDataRequest<{
       siteEntry?: { siteUrl: string; permissionLevel?: string }[];
-    };
+    }>(data.workspaceId, "search-console", "https://searchconsole.googleapis.com/webmasters/v3/sites");
     return {
       sites: siteEntry
         .filter((s) => s.permissionLevel !== "siteUnverifiedUser")
@@ -183,14 +178,11 @@ export const selectSearchConsoleSite = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertOwner(context.supabase, data.workspaceId);
-    const config = await loadConfig(data.workspaceId);
-    const token = await accessToken(config.refreshToken);
-    const res = await fetch("https://searchconsole.googleapis.com/webmasters/v3/sites", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const { siteEntry = [] } = (await res.json()) as {
+    const config = await loadConfig(data.workspaceId).catch(() => ({ refreshToken: "" }));
+    const { googleDataRequest } = await import("./google-data.server");
+    const { siteEntry = [] } = await googleDataRequest<{
       siteEntry?: { siteUrl: string; permissionLevel?: string }[];
-    };
+    }>(data.workspaceId, "search-console", "https://searchconsole.googleapis.com/webmasters/v3/sites");
     const match = siteEntry.find(
       (s) => s.siteUrl === data.siteUrl && s.permissionLevel !== "siteUnverifiedUser",
     );
