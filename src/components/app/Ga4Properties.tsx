@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2, X } from "lucide-react";
 
 import { listGa4Properties, selectGa4Property } from "@/lib/ga4.functions";
-import { startSearchConsoleOAuth } from "@/lib/gsc.functions";
+import { startPipedreamConnect } from "@/lib/pipedream.functions";
 
 export function Ga4Properties({
   workspaceId,
@@ -16,7 +16,7 @@ export function Ga4Properties({
   const qc = useQueryClient();
   const listFn = useServerFn(listGa4Properties);
   const selectFn = useServerFn(selectGa4Property);
-  const startGoogle = useServerFn(startSearchConsoleOAuth);
+  const startGoogle = useServerFn(startPipedreamConnect);
   const [picked, setPicked] = useState<string | null>(null);
 
   const props = useQuery({
@@ -64,7 +64,9 @@ export function Ga4Properties({
               </p>
               <button
                 onClick={async () => {
-                  const { url } = await startGoogle({ data: { workspaceId } });
+                  const { url } = await startGoogle({
+                    data: { workspaceId, provider: "analytics", origin: window.location.origin },
+                  });
                   window.location.href = url;
                 }}
                 className="w-full rounded-full border border-border px-5 py-2.5 text-sm font-bold hover:bg-secondary"

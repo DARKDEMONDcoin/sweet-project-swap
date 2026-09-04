@@ -116,6 +116,18 @@ export const pipedreamApps: PipedreamApp[] = [
       },
     },
   },
+  {
+    provider: "search-console",
+    slug: "google_search_console",
+    label: "Google Search Console",
+    note: "تقرأ نور المواقع والكلمات والنقرات عبر ربط Google الرسمي.",
+  },
+  {
+    provider: "analytics",
+    slug: "google_analytics",
+    label: "Google Analytics 4",
+    note: "يقرأ آدم خصائص GA4 والجلسات والتحويلات عبر ربط Google الرسمي.",
+  },
   { provider: "whatsapp", slug: "whatsapp_business", label: "واتساب للأعمال" },
   {
     provider: "hubspot",
