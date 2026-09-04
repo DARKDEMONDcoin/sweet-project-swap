@@ -7,7 +7,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
 import { pipedreamAction, pipedreamApp } from "@/data/pipedream-apps";
-import { pipedreamConfig, runAction, missingConfigError } from "./pipedream.server";
+import {
+  pipedreamConfig,
+  runAction,
+  missingConfigError,
+  type PipedreamConfig,
+} from "./pipedream.server";
+import {
+  pageTarget,
+  replyToFacebookComment,
+  replyToInstagramComment,
+  hideComment,
+  replyToMessenger,
+} from "./social-inbox.server";
+
 
 type Admin = SupabaseClient<Database>;
 
