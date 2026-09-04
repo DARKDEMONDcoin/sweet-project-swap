@@ -212,7 +212,20 @@ export const pipedreamApps: PipedreamApp[] = [
     },
   },
   { provider: "stripe", slug: "stripe", label: "سترايب" },
-  { provider: "telegram", slug: "telegram_bot_api", label: "تيليجرام" },
+  {
+    provider: "telegram",
+    slug: "telegram_bot_api",
+    label: "تيليجرام",
+    publishComponent: "telegram_bot_api-send-message",
+    accountProp: "telegram_bot_api",
+    actions: {
+      send: {
+        component: "telegram_bot_api-send-message",
+        accountProp: "telegram_bot_api",
+        label: "إرسال رسالة تيليجرام",
+      },
+    },
+  },
   { provider: "figma", slug: "figma", label: "فيجما" },
   { provider: "canva", slug: "canva", label: "كانفا" },
   { provider: "meta-ads", slug: "facebook_ads", label: "إعلانات ميتا" },
