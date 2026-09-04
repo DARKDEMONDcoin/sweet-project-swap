@@ -108,7 +108,7 @@ async function readProvider(
       return readHubspot(config, workspaceId, accountId);
     case "facebook":
     case "instagram":
-      return readMeta(config, workspaceId, accountId, provider);
+      return readMetaWithInbox(config, workspaceId, accountId, provider);
     default:
       return "";
   }
