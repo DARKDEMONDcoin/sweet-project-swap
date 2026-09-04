@@ -13,12 +13,36 @@ export type SearchConsoleConfig = {
   email?: string;
 };
 
-export function googleCreds() {
-  const clientId = process.env["GOOGLE_OAUTH_CLIENT_ID"];
-  const clientSecret = process.env["GOOGLE_OAUTH_CLIENT_SECRET"];
-  if (!clientId || !clientSecret) {
-    throw new Error("مفاتيح Google OAuth غير مضبوطة على الخادم.");
+let credsCache: { at: number; clientId: string; clientSecret: string } | null = null;
+
+/** يقرأ مفاتيح Google OAuth من Supabase (جدول app_secrets) — Supabase هو مصدر الأسرار الوحيد. */
+export async function googleCreds(): Promise<{ clientId: string; clientSecret: string }> {
+  if (credsCache && Date.now() - credsCache.at < 5 * 60 * 1000) {
+    return { clientId: credsCache.clientId, clientSecret: credsCache.clientSecret };
   }
+  let clientId = "";
+  let clientSecret = "";
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("app_secrets")
+      .select("name, value")
+      .in("name", ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"]);
+    for (const row of (data ?? []) as { name: string; value: string }[]) {
+      if (row.name === "GOOGLE_OAUTH_CLIENT_ID") clientId = row.value ?? "";
+      if (row.name === "GOOGLE_OAUTH_CLIENT_SECRET") clientSecret = row.value ?? "";
+    }
+  } catch {
+    // نسقط على متغيرات البيئة
+  }
+  if (!clientId) clientId = process.env["GOOGLE_OAUTH_CLIENT_ID"] ?? "";
+  if (!clientSecret) clientSecret = process.env["GOOGLE_OAUTH_CLIENT_SECRET"] ?? "";
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      "ربط Search Console غير مُفعّل بعد: أضف GOOGLE_OAUTH_CLIENT_ID و GOOGLE_OAUTH_CLIENT_SECRET في جدول app_secrets بقاعدة Supabase.",
+    );
+  }
+  credsCache = { at: Date.now(), clientId, clientSecret };
   return { clientId, clientSecret };
 }
 
@@ -38,13 +62,13 @@ async function sign(value: string, secret: string): Promise<string> {
 }
 
 export async function encodeState(workspaceId: string): Promise<string> {
-  const { clientSecret } = googleCreds();
+  const { clientSecret } = await googleCreds();
   const payload = `${workspaceId}.${Date.now()}`;
   return `${btoa(payload)}~${await sign(payload, clientSecret)}`;
 }
 
 export async function decodeState(state: string): Promise<string> {
-  const { clientSecret } = googleCreds();
+  const { clientSecret } = await googleCreds();
   const [encoded, mac] = state.split("~");
   if (!encoded || !mac) throw new Error("Invalid state");
   const payload = atob(encoded);
@@ -70,7 +94,7 @@ export const startSearchConsoleOAuth = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (owns !== true) throw new Error("Forbidden: لا تملك هذه مساحة العمل.");
 
-    const { clientId } = googleCreds();
+    const { clientId } = await googleCreds();
     const origin = new URL(getRequest().url).origin;
     const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     url.searchParams.set("client_id", clientId);
@@ -85,7 +109,7 @@ export const startSearchConsoleOAuth = createServerFn({ method: "POST" })
   });
 
 export async function accessToken(refreshToken: string): Promise<string> {
-  const { clientId, clientSecret } = googleCreds();
+  const { clientId, clientSecret } = await googleCreds();
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },

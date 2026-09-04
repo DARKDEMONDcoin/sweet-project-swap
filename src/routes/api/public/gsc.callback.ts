@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/public/gsc/callback")({
 
         try {
           const workspaceId = await decodeState(state);
-          const { clientId, clientSecret } = googleCreds();
+          const { clientId, clientSecret } = await googleCreds();
 
           const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
             method: "POST",
