@@ -17,6 +17,8 @@ import {
   facebookMessages,
   inboxSummary,
 } from "./social-inbox.server";
+import { readThreads, readPinterest, readTikTok } from "./social-extra.server";
+import { metaAdsSummary } from "./ads-insights.server";
 
 /** منشورات ميتا + صندوق التعليقات والرسائل غير المُجاب عليها. */
 async function readMetaWithInbox(
@@ -56,8 +58,8 @@ const EMPTY: LiveContext = { block: "", used: [] };
 export const employeeReadProviders: Record<string, string[]> = {
   eva: ["gmail", "outlook", "calendar"],
   sam: ["hubspot", "gmail", "calendar"],
-  sonny: ["instagram", "facebook"],
-  adam: [],
+  sonny: ["instagram", "facebook", "threads", "pinterest", "tiktok"],
+  adam: ["meta-ads"],
   dana: [],
   nour: [],
 };
@@ -144,6 +146,14 @@ async function readProvider(
     case "facebook":
     case "instagram":
       return readMetaWithInbox(config, workspaceId, accountId, provider);
+    case "threads":
+      return readThreads(config, workspaceId, accountId);
+    case "pinterest":
+      return readPinterest(config, workspaceId, accountId);
+    case "tiktok":
+      return readTikTok(config, workspaceId, accountId);
+    case "meta-ads":
+      return metaAdsSummary(config, workspaceId, accountId);
     default:
       return "";
   }
