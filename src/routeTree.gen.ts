@@ -41,7 +41,6 @@ import { Route as ApiPublicNourWeeklyRouteImport } from './routes/api/public/nou
 import { Route as ApiPublicPipedreamWebhookRouteImport } from './routes/api/public/pipedream-webhook'
 import { Route as AppChatIndexRouteImport } from './routes/app.chat.index'
 import { Route as AppChatIdRouteImport } from './routes/app.chat.$id'
-import { Route as ApiPublicGscCallbackRouteImport } from './routes/api/public/gsc.callback'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -205,11 +204,6 @@ const AppChatIdRoute = AppChatIdRouteImport.update({
   path: '/chat/$id',
   getParentRoute: () => AppRoute,
 } as any)
-const ApiPublicGscCallbackRoute = ApiPublicGscCallbackRouteImport.update({
-  id: '/api/public/gsc/callback',
-  path: '/api/public/gsc/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -244,7 +238,6 @@ export interface FileRoutesByFullPath {
   '/api/public/pipedream-webhook': typeof ApiPublicPipedreamWebhookRoute
   '/app/chat/$id': typeof AppChatIdRoute
   '/app/chat/': typeof AppChatIndexRoute
-  '/api/public/gsc/callback': typeof ApiPublicGscCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -278,7 +271,6 @@ export interface FileRoutesByTo {
   '/api/public/pipedream-webhook': typeof ApiPublicPipedreamWebhookRoute
   '/app/chat/$id': typeof AppChatIdRoute
   '/app/chat': typeof AppChatIndexRoute
-  '/api/public/gsc/callback': typeof ApiPublicGscCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -314,7 +306,6 @@ export interface FileRoutesById {
   '/api/public/pipedream-webhook': typeof ApiPublicPipedreamWebhookRoute
   '/app/chat/$id': typeof AppChatIdRoute
   '/app/chat/': typeof AppChatIndexRoute
-  '/api/public/gsc/callback': typeof ApiPublicGscCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -351,7 +342,6 @@ export interface FileRouteTypes {
     | '/api/public/pipedream-webhook'
     | '/app/chat/$id'
     | '/app/chat/'
-    | '/api/public/gsc/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -385,7 +375,6 @@ export interface FileRouteTypes {
     | '/api/public/pipedream-webhook'
     | '/app/chat/$id'
     | '/app/chat'
-    | '/api/public/gsc/callback'
   id:
     | '__root__'
     | '/'
@@ -420,7 +409,6 @@ export interface FileRouteTypes {
     | '/api/public/pipedream-webhook'
     | '/app/chat/$id'
     | '/app/chat/'
-    | '/api/public/gsc/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -445,7 +433,6 @@ export interface RootRouteChildren {
   ApiPublicNourAutomationsRoute: typeof ApiPublicNourAutomationsRoute
   ApiPublicNourWeeklyRoute: typeof ApiPublicNourWeeklyRoute
   ApiPublicPipedreamWebhookRoute: typeof ApiPublicPipedreamWebhookRoute
-  ApiPublicGscCallbackRoute: typeof ApiPublicGscCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -674,13 +661,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/api/public/gsc/callback': {
-      id: '/api/public/gsc/callback'
-      path: '/api/public/gsc/callback'
-      fullPath: '/api/public/gsc/callback'
-      preLoaderRoute: typeof ApiPublicGscCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -736,7 +716,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicNourAutomationsRoute: ApiPublicNourAutomationsRoute,
   ApiPublicNourWeeklyRoute: ApiPublicNourWeeklyRoute,
   ApiPublicPipedreamWebhookRoute: ApiPublicPipedreamWebhookRoute,
-  ApiPublicGscCallbackRoute: ApiPublicGscCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -24,7 +24,6 @@ import {
   startPipedreamConnect,
   syncPipedreamAccounts,
 } from "@/lib/pipedream.functions";
-import { startSearchConsoleOAuth } from "@/lib/gsc.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/integrations")({
@@ -41,9 +40,7 @@ export const Route = createFileRoute("/app/integrations")({
 /** المنصات المربوطة ربطاً مباشراً من داخل المنصة (بدون وسيط). */
 const realProviders = new Set([
   "wordpress",
-  "search-console",
   "indexnow",
-  "analytics",
   "shopify",
   "webflow",
   "ghost",
@@ -63,7 +60,6 @@ function IntegrationsPage() {
   const { data: integrations, isLoading } = useIntegrations(workspace?.id);
   const setStatus = useSetIntegrationStatus(workspace?.id);
   const disconnect = useServerFn(disconnectProvider);
-  const startGsc = useServerFn(startSearchConsoleOAuth);
   const startConnect = useServerFn(startPipedreamConnect);
   const syncAccounts = useServerFn(syncPipedreamAccounts);
   const disconnectPd = useServerFn(disconnectPipedream);
@@ -131,10 +127,6 @@ function IntegrationsPage() {
           setIndexNowOpen(true);
           return;
         }
-        if (provider === "analytics") {
-          setGa4Open(true);
-          return;
-        }
         if (provider === "shopify") {
           setShopifyOpen(true);
           return;
@@ -146,14 +138,6 @@ function IntegrationsPage() {
         if (provider === "ghost") {
           setGhostOpen(true);
           return;
-        }
-        setBusy(id);
-        try {
-          const { url } = await startGsc({ data: { workspaceId: workspace!.id } });
-          window.location.href = url;
-        } catch (e) {
-          setError(e instanceof Error ? e.message : "تعذّر بدء الربط مع Google");
-          setBusy(null);
         }
         return;
       }
@@ -172,7 +156,9 @@ function IntegrationsPage() {
     if (isPipedreamProvider(provider) && workspace) {
       setBusy(id);
       try {
-        if (status === "connected" || status === "error") {
+        if (status === "connected" && provider === "analytics") {
+          setGa4Open(true);
+        } else if (status === "connected" || status === "error") {
           await disconnectPd({ data: { workspaceId: workspace.id, provider } });
           void qc.invalidateQueries({ queryKey: ["integrations", workspace.id] });
         } else {
