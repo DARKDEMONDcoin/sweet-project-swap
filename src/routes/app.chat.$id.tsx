@@ -13,6 +13,8 @@ import { askEmployee, runSkill } from "@/lib/ai.functions";
 import { SkillPalette } from "@/components/app/SkillPalette";
 import { Markdown } from "@/components/app/Markdown";
 import { PublishToWordPress } from "@/components/app/PublishToWordPress";
+import { ActionPanel } from "@/components/app/ActionPanel";
+
 
 import { skillsFor, type Skill } from "@/data/skills";
 import { cn } from "@/lib/utils";
