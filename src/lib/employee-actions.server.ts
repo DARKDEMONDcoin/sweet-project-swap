@@ -20,6 +20,8 @@ import {
   hideComment,
   replyToMessenger,
 } from "./social-inbox.server";
+import { publishThreads, createPin } from "./social-extra.server";
+import { metaAdsSummary } from "./ads-insights.server";
 
 
 type Admin = SupabaseClient<Database>;
@@ -327,6 +329,55 @@ export const employeeActions: EmployeeActionDef[] = [
       title: v["title"],
       pageContent: v["content"] ?? "",
     }),
+  },
+
+  /* ————— منصات إضافية: ثريدز وبينترست ————— */
+  {
+    id: "sonny-post-threads",
+    employeeId: "sonny",
+    provider: "threads",
+    label: "نشر منشور على ثريدز",
+    inputs: [
+      { name: "text", label: "النص", required: true },
+      { name: "imageUrl", label: "رابط صورة (اختياري)" },
+    ],
+    run: ({ config, workspaceId, accountId, values }) =>
+      publishThreads(config, workspaceId, accountId, {
+        text: values["text"]!,
+        ...(values["imageUrl"]?.trim() ? { imageUrl: values["imageUrl"].trim() } : {}),
+      }),
+  },
+  {
+    id: "sonny-create-pin",
+    employeeId: "sonny",
+    provider: "pinterest",
+    label: "إنشاء بِن على بينترست",
+    inputs: [
+      { name: "title", label: "العنوان", required: true },
+      { name: "imageUrl", label: "رابط الصورة", required: true },
+      { name: "description", label: "الوصف" },
+      { name: "link", label: "رابط الوجهة" },
+      { name: "boardId", label: "معرّف اللوحة (اختياري)" },
+    ],
+    run: ({ config, workspaceId, accountId, values }) =>
+      createPin(config, workspaceId, accountId, {
+        title: values["title"]!,
+        imageUrl: values["imageUrl"]!,
+        ...(values["description"] ? { description: values["description"] } : {}),
+        ...(values["link"] ? { link: values["link"] } : {}),
+        ...(values["boardId"] ? { boardId: values["boardId"] } : {}),
+      }),
+  },
+
+  /* ————— قياس الإعلانات ————— */
+  {
+    id: "adam-meta-ads-report",
+    employeeId: "adam",
+    provider: "meta-ads",
+    label: "تقرير أداء حملات ميتا (٣٠ يوماً)",
+    inputs: [],
+    run: ({ config, workspaceId, accountId }) =>
+      metaAdsSummary(config, workspaceId, accountId).then((report) => ({ report })),
   },
 ];
 
