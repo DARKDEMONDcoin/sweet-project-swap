@@ -36,26 +36,6 @@ export const startSearchConsoleOAuth = createServerFn({ method: "POST" })
     return { url: url.toString(), redirectUri: `${origin}/app/integrations` };
   });
 
-export async function accessToken(refreshToken: string): Promise<string> {
-  const { clientId, clientSecret } = await googleCreds();
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    console.error(`[gsc] refresh failed [${res.status}]: ${text.slice(0, 300)}`);
-    throw new Error("انتهت صلاحية ربط Search Console — أعد الربط من صفحة التكاملات.");
-  }
-  return (JSON.parse(text) as { access_token: string }).access_token;
-}
-
 export async function loadConfig(workspaceId: string): Promise<SearchConsoleConfig> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
