@@ -4,84 +4,11 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const SCOPE =
-  "https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly";
-
 export type SearchConsoleConfig = {
-  refreshToken: string;
+  refreshToken?: string;
   siteUrl?: string;
   email?: string;
 };
-
-let credsCache: { at: number; clientId: string; clientSecret: string } | null = null;
-
-/** يقرأ مفاتيح Google OAuth من Supabase (جدول app_secrets) — Supabase هو مصدر الأسرار الوحيد. */
-export async function googleCreds(): Promise<{ clientId: string; clientSecret: string }> {
-  if (credsCache && Date.now() - credsCache.at < 5 * 60 * 1000) {
-    return { clientId: credsCache.clientId, clientSecret: credsCache.clientSecret };
-  }
-  let clientId = "";
-  let clientSecret = "";
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
-      .from("app_secrets")
-      .select("name, value")
-      .in("name", ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"]);
-    for (const row of (data ?? []) as { name: string; value: string }[]) {
-      if (row.name === "GOOGLE_OAUTH_CLIENT_ID") clientId = row.value ?? "";
-      if (row.name === "GOOGLE_OAUTH_CLIENT_SECRET") clientSecret = row.value ?? "";
-    }
-  } catch {
-    // نسقط على متغيرات البيئة
-  }
-  if (!clientId) clientId = process.env["GOOGLE_OAUTH_CLIENT_ID"] ?? "";
-  if (!clientSecret) clientSecret = process.env["GOOGLE_OAUTH_CLIENT_SECRET"] ?? "";
-  if (!clientId || !clientSecret) {
-    throw new Error(
-      "ربط Search Console غير مُفعّل بعد: أضف GOOGLE_OAUTH_CLIENT_ID و GOOGLE_OAUTH_CLIENT_SECRET في جدول app_secrets بقاعدة Supabase.",
-    );
-  }
-  credsCache = { at: Date.now(), clientId, clientSecret };
-  return { clientId, clientSecret };
-}
-
-/** توقيع بسيط لحالة OAuth حتى لا يُتلاعب بها. */
-async function sign(value: string, secret: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
-  return btoa(String.fromCharCode(...new Uint8Array(mac))).replace(/[+/=]/g, (c) =>
-    c === "+" ? "-" : c === "/" ? "_" : "",
-  );
-}
-
-export async function encodeState(workspaceId: string): Promise<string> {
-  const { clientSecret } = await googleCreds();
-  const payload = `${workspaceId}.${Date.now()}`;
-  return `${btoa(payload)}~${await sign(payload, clientSecret)}`;
-}
-
-export async function decodeState(state: string): Promise<string> {
-  const { clientSecret } = await googleCreds();
-  const [encoded, mac] = state.split("~");
-  if (!encoded || !mac) throw new Error("Invalid state");
-  const payload = atob(encoded);
-  if ((await sign(payload, clientSecret)) !== mac) throw new Error("Invalid state signature");
-  const [workspaceId, ts] = payload.split(".");
-  if (!workspaceId || !ts) throw new Error("Invalid state payload");
-  if (Date.now() - Number(ts) > 15 * 60 * 1000) throw new Error("انتهت صلاحية الرابط — أعد المحاولة.");
-  return workspaceId;
-}
-
-export function redirectUri(origin: string): string {
-  return `${origin}/api/public/gsc/callback`;
-}
 
 /** يبدأ ربط Search Console ويُعيد رابط موافقة Google. */
 export const startSearchConsoleOAuth = createServerFn({ method: "POST" })
@@ -139,7 +66,7 @@ export async function loadConfig(workspaceId: string): Promise<SearchConsoleConf
     .maybeSingle();
   if (error) throw new Error(error.message);
   const config = data?.config as SearchConsoleConfig | undefined;
-  if (!config?.refreshToken) throw new Error("Search Console غير مربوط بعد.");
+  if (!config) return {};
   return config;
 }
 
@@ -225,23 +152,17 @@ export async function gscSnapshotFor(
   try {
     const config = await loadConfig(workspaceId);
     if (!config.siteUrl) return null;
-    const token = await accessToken(config.refreshToken);
+    const { googleDataRequest } = await import("./google-data.server");
     const end = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
     const start = new Date(Date.now() - (days + 3) * 86_400_000).toISOString().slice(0, 10);
 
     const query = async (dimension: "query" | "page"): Promise<GscRow[]> => {
-      const res = await fetch(
-        `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(config.siteUrl!)}/searchAnalytics/query`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ startDate: start, endDate: end, dimensions: [dimension], rowLimit: 25 }),
-        },
-      );
-      if (!res.ok) return [];
-      const { rows = [] } = (await res.json()) as {
+      const { rows = [] } = await googleDataRequest<{
         rows?: { keys: string[]; clicks: number; impressions: number; ctr: number; position: number }[];
-      };
+      }>(workspaceId, "search-console", `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(config.siteUrl!)}/searchAnalytics/query`, {
+        method: "POST",
+        body: { startDate: start, endDate: end, dimensions: [dimension], rowLimit: 25 },
+      });
       return rows.map((r) => ({
         key: r.keys[0] ?? "",
         clicks: r.clicks,
@@ -266,25 +187,18 @@ export const searchConsoleSnapshot = createServerFn({ method: "POST" })
     await assertOwner(context.supabase, data.workspaceId);
     const config = await loadConfig(data.workspaceId);
     if (!config.siteUrl) throw new Error("اختر موقعاً من قائمة Search Console أولاً.");
-    const token = await accessToken(config.refreshToken);
+    const { googleDataRequest } = await import("./google-data.server");
 
     const end = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
     const start = new Date(Date.now() - 31 * 86_400_000).toISOString().slice(0, 10);
 
     const query = async (dimension: "query" | "page") => {
-      const res = await fetch(
-        `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(config.siteUrl!)}/searchAnalytics/query`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ startDate: start, endDate: end, dimensions: [dimension], rowLimit: 25 }),
-        },
-      );
-      const text = await res.text();
-      if (!res.ok) throw new Error(`Search Console رفض الطلب [${res.status}]: ${text.slice(0, 200)}`);
-      const { rows = [] } = JSON.parse(text) as {
+      const { rows = [] } = await googleDataRequest<{
         rows?: { keys: string[]; clicks: number; impressions: number; ctr: number; position: number }[];
-      };
+      }>(data.workspaceId, "search-console", `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(config.siteUrl!)}/searchAnalytics/query`, {
+        method: "POST",
+        body: { startDate: start, endDate: end, dimensions: [dimension], rowLimit: 25 },
+      });
       return rows.map((r) => ({
         key: r.keys[0] ?? "",
         clicks: r.clicks,

@@ -28,28 +28,18 @@ async function loadGa4Config(workspaceId: string): Promise<Ga4Config> {
   return (data?.config as Ga4Config | undefined) ?? {};
 }
 
-async function googleToken(workspaceId: string): Promise<string> {
-  const { loadConfig, accessToken } = await import("./gsc.functions");
-  const config = await loadConfig(workspaceId);
-  return accessToken(config.refreshToken);
-}
-
 async function runReport(
-  token: string,
+  workspaceId: string,
   propertyId: string,
   body: Record<string, unknown>,
 ): Promise<{ rows: { dimensionValues?: { value: string }[]; metricValues?: { value: string }[] }[] }> {
-  const res = await fetch(
+  const { googleDataRequest } = await import("./google-data.server");
+  return googleDataRequest(
+    workspaceId,
+    "analytics",
     `https://analyticsdata.googleapis.com/v1beta/properties/${encodeURIComponent(propertyId)}:runReport`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
+    { method: "POST", body },
   );
-  const text = await res.text();
-  if (!res.ok) throw new Error(`Analytics رفض الطلب [${res.status}]: ${text.slice(0, 200)}`);
-  return JSON.parse(text) as { rows: [] };
 }
 
 /** لقطة GA4 داخلية لنور — ترجع null إن لم يكن الربط جاهزاً. */
@@ -60,17 +50,16 @@ export async function ga4SnapshotFor(
   try {
     const { propertyId } = await loadGa4Config(workspaceId);
     if (!propertyId) return null;
-    const token = await googleToken(workspaceId);
     const start = `${days}daysAgo`;
     const end = "yesterday";
     const dateRanges = [{ startDate: start, endDate: end }];
 
     const [totals, landing, channels] = await Promise.all([
-      runReport(token, propertyId, {
+      runReport(workspaceId, propertyId, {
         dateRanges,
         metrics: [{ name: "sessions" }, { name: "totalUsers" }, { name: "engagedSessions" }],
       }),
-      runReport(token, propertyId, {
+      runReport(workspaceId, propertyId, {
         dateRanges,
         dimensions: [{ name: "landingPagePlusQueryString" }],
         metrics: [{ name: "sessions" }],
@@ -83,7 +72,7 @@ export async function ga4SnapshotFor(
         orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
         limit: 15,
       }),
-      runReport(token, propertyId, {
+      runReport(workspaceId, propertyId, {
         dateRanges,
         dimensions: [{ name: "sessionDefaultChannelGroup" }],
         metrics: [{ name: "sessions" }],
