@@ -158,6 +158,7 @@ export const listSearchConsoleSites = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ workspaceId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await assertOwner(context.supabase, data.workspaceId);
+    const saved = await loadConfig(data.workspaceId).catch(() => null);
     const { googleDataRequest } = await import("./google-data.server");
     const { siteEntry = [] } = await googleDataRequest<{
       siteEntry?: { siteUrl: string; permissionLevel?: string }[];
@@ -166,7 +167,7 @@ export const listSearchConsoleSites = createServerFn({ method: "POST" })
       sites: siteEntry
         .filter((s) => s.permissionLevel !== "siteUnverifiedUser")
         .map((s) => s.siteUrl),
-      selected: config.siteUrl ?? null,
+      selected: saved?.siteUrl ?? null,
     };
   });
 
@@ -178,7 +179,7 @@ export const selectSearchConsoleSite = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertOwner(context.supabase, data.workspaceId);
-    const config = await loadConfig(data.workspaceId).catch(() => ({ refreshToken: "" }));
+    const config: SearchConsoleConfig = await loadConfig(data.workspaceId).catch(() => ({ refreshToken: "" }));
     const { googleDataRequest } = await import("./google-data.server");
     const { siteEntry = [] } = await googleDataRequest<{
       siteEntry?: { siteUrl: string; permissionLevel?: string }[];
